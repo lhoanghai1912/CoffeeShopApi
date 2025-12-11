@@ -26,9 +26,6 @@ public class AuthService : IAuthService
         _context = context;
         _configuration = configuration;
     }
-    
-    
-    
 
     public async Task<AuthResponse?> LoginAsync(LoginRequest request)
     {
@@ -46,8 +43,10 @@ public class AuthService : IAuthService
             Id = user.Id,
             Username = user.Username,
             FullName = user.FullName,
-            Role = user.Role,
+            // Role = user.Roles,
+            PhoneNumber = user.PhoneNumber,
             Token = token 
+            
         };
     }
 
@@ -59,10 +58,10 @@ public class AuthService : IAuthService
 
         var claims = new List<Claim>
         {
-            new(JwtRegisteredClaimNames.Sub, user.Username),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new("userId", user.Id.ToString()),
-            new(ClaimTypes.Role, user.Role) // Lưu quyền vào Token (Admin/Customer)
+            new("fullName", user.FullName ?? ""),
+            
         };
 
         var tokenDescriptor = new SecurityTokenDescriptor
@@ -74,6 +73,8 @@ public class AuthService : IAuthService
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
         };
 
+        //token fullname va id
+        
         var tokenHandler = new JwtSecurityTokenHandler();
         var token = tokenHandler.CreateToken(tokenDescriptor);
         return tokenHandler.WriteToken(token);
@@ -91,7 +92,8 @@ public class AuthService : IAuthService
             Username = request.Username,
             Password = passwordHash,
             FullName = request.FullName,
-            Role = "Customer"
+            PhoneNumber = request.PhoneNumber,
+            // Role = request.Role,
         };
 
         _context.Users.Add(newUser);

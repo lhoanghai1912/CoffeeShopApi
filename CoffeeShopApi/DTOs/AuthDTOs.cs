@@ -1,4 +1,7 @@
-﻿namespace CoffeeShopApi.DTOs;
+﻿using System.ComponentModel.DataAnnotations;
+using CoffeeShopApi.Shared;
+
+namespace CoffeeShopApi.DTOs;
 
 public class LoginRequest
 {
@@ -9,15 +12,20 @@ public class LoginRequest
 public class RegisterRequest
 {
     public string Username { get; set; }
+    
+    [ValidPassword]
     public string Password { get; set; }
-    public string FullName { get; set; }
+    public string? FullName { get; set; } 
+    public string? PhoneNumber { get; set; }
+    public string? Role { get; set; }
 }
 
 public class AuthResponse
 {
     public int Id { get; set; }
     public string Username { get; set; }
-    public string FullName { get; set; }
-    public string Role { get; set; }
-    public string Token { get; set; } // Để dành cho JWT sau này
+    public string? FullName { get; set; }
+    public string? Role { get; set; }
+    public string? PhoneNumber { get; set; } 
+    public string Token { get; set; } 
 }

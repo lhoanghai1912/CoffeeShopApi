@@ -2,12 +2,18 @@ using CoffeeShopApi.Data;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 using System.Text;
+using System.Text.Json.Serialization;
 using CoffeeShopApi.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddControllers()
+    .AddJsonOptions(x => 
+        x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 
 // 1. Add services
 builder.Services.AddControllers();
@@ -89,11 +95,9 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-
-
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
-app.UseAuthentication(); // <-- Thêm dòng này
+app.UseAuthentication(); 
 app.UseAuthorization();
 app.MapControllers();
 
