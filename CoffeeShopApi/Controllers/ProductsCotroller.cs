@@ -1,7 +1,6 @@
 ﻿using CoffeeShopApi.DTOs;
 
 using CoffeeShopApi.Services;
-using CoffeeShopApi.Shared;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CoffeeShopApi.Controllers;
@@ -17,16 +16,10 @@ public class ProductsController : ControllerBase
         _service = service;
     }
 
-    [HttpGet()]
-    public async Task<IActionResult> GetPaged(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 10,
-        [FromQuery] string? search = null,
-        [FromQuery] string? filter = null,
-        [FromQuery] string? orderBy = null)
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
     {
-        var result = await _service.GetPagedAsync(page, pageSize, search, filter, orderBy);
-        return Ok(ApiResponse<object>.Ok(result));
+        return Ok(await _service.GetAllAsync());
     }
 
     [HttpGet("{id}")]
@@ -34,29 +27,29 @@ public class ProductsController : ControllerBase
     {
         var product = await _service.GetByIdAsync(id);
         if (product == null) return NotFound();
-        return Ok(ApiResponse<object>.Ok(product));
+        return Ok(product);
     }
 
     [HttpPost]
     public async Task<IActionResult> Create(CreateProductRequest request)
     {
         var createdProduct = await _service.CreateAsync(request);
-        return Ok(ApiResponse<object>.Ok(createdProduct));
+        return CreatedAtAction(nameof(GetById), new { id = createdProduct.Id }, createdProduct);
     }
 
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, UpdateProductRequest request)
     {
         var success = await _service.UpdateAsync(id, request);
-        if (!success) return NotFound(ApiResponse<object>.NotFound());
-        return Ok(ApiResponse<object>.Ok(success,"Cập nhật sản phẩm thành công"));
+        if (!success) return NotFound();
+        return NoContent();
     }
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
         var success = await _service.DeleteAsync(id);
-        if (!success) return NotFound(ApiResponse<object>.NotFound());
-        return Ok(ApiResponse<object>.Ok(success,"Xóa sản phẩm thành công"));
+        if (!success) return NotFound();
+        return NoContent();
     }
 }

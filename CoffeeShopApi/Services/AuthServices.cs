@@ -13,7 +13,7 @@ namespace CoffeeShopApi.Services;
 public interface IAuthService
 {
     Task<AuthResponse?> LoginAsync(LoginRequest request);
-    Task<(User?, string)> RegisterAsync(RegisterRequest request);
+    Task<User?> RegisterAsync(RegisterRequest request);
 }
 
 public class AuthService : IAuthService
@@ -30,27 +30,21 @@ public class AuthService : IAuthService
     public async Task<AuthResponse?> LoginAsync(LoginRequest request)
     {
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == request.Username);
-
-        if (user == null)
-        {
-            return null;
-        }
         
-        // var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == request.Role);
-        if (!BCrypt.Net.BCrypt.Verify(request.Password, user.Password))
+        if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.Password))
         {
             return null;
         }
 
         var token = GenerateJwtToken(user);
-        
+
         return new AuthResponse
         {
             Id = user.Id,
             Username = user.Username,
             FullName = user.FullName,
+            // Role = user.Roles,
             PhoneNumber = user.PhoneNumber,
-            RoleId = user.RoleId ,
             Token = token 
             
         };
@@ -86,29 +80,26 @@ public class AuthService : IAuthService
         return tokenHandler.WriteToken(token);
     }
 
-    public async Task<(User?,string)> RegisterAsync(RegisterRequest request)
+    public async Task<User?> RegisterAsync(RegisterRequest request)
     {
-        string passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
-        int roleIdToUse = request.RoleId ?? 1;
         if (await _context.Users.AnyAsync(u => u.Username == request.Username))
-            return (null, "Tên tài khoản đã được sử dụng");
+            return null; 
 
-        if (string.IsNullOrEmpty(request.FullName))
-        {
-            return (null, "Nhập fullName");
-        }
-        
+        string passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+
         var newUser = new User
         {
             Username = request.Username,
             Password = passwordHash,
             FullName = request.FullName,
-           PhoneNumber = request.PhoneNumber,
-           RoleId =  roleIdToUse,
+            PhoneNumber = request.PhoneNumber,
+            // Role = request.Role,
         };
 
         _context.Users.Add(newUser);
         await _context.SaveChangesAsync();
-        return (newUser,"");
+        return newUser;
     }
+    
+    
 }

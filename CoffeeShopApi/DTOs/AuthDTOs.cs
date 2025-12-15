@@ -15,9 +15,9 @@ public class RegisterRequest
     
     [ValidPassword]
     public string Password { get; set; }
-    public string FullName { get; set; } 
+    public string? FullName { get; set; } 
     public string? PhoneNumber { get; set; }
-    public int? RoleId { get; set; } // FK trỏ về bảng Role
+    public string? Role { get; set; }
 }
 
 public class AuthResponse
@@ -25,7 +25,7 @@ public class AuthResponse
     public int Id { get; set; }
     public string Username { get; set; }
     public string? FullName { get; set; }
-    public int? RoleId { get; set; }
+    public string? Role { get; set; }
     public string? PhoneNumber { get; set; } 
     public string Token { get; set; } 
 }

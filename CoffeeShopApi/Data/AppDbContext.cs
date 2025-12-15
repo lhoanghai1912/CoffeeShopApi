@@ -8,10 +8,16 @@ public class AppDbContext : DbContext
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
     }
+    public DbSet<User> Users { get; set; }
+    public DbSet<Role> Roles { get; set; }
+    
+    // Khai báo cả 2 bảng sản phẩm
+    public DbSet<Product> Products { get; set; }
+    public DbSet<ProductDetail> ProductDetails { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
 
         // 1. Cấu hình Role Code là duy nhất (Unique)
         modelBuilder.Entity<Role>()
@@ -85,11 +91,4 @@ public class AppDbContext : DbContext
             new ProductDetail { Id = 6, ProductId = 3, Size = "Standard", Price = 45000 }
         );
     }
-    public DbSet<User> Users { get; set; }
-    public DbSet<Role> Roles { get; set; }
-    
-    // Khai báo cả 2 bảng sản phẩm
-    public DbSet<Product> Products { get; set; }
-    public DbSet<ProductDetail> ProductDetails { get; set; }
-
 }

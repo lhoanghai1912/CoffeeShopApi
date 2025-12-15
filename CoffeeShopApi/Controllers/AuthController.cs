@@ -1,6 +1,5 @@
 ﻿using CoffeeShopApi.DTOs;
 using CoffeeShopApi.Services;
-using CoffeeShopApi.Shared;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CoffeeShopApi.Controllers;
@@ -19,26 +18,16 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-
-        var response = await _authService.LoginAsync(request);
-
-        if (response == null)
-        {
-            return Unauthorized(ApiResponse<AuthResponse>.Fail("Sai tài khoản hoặc mật khẩu"));        }
-
-        // Trả về thẳng object response (đã chứa Token, User Info)
-        return Ok(response);
+        var result = await _authService.LoginAsync(request);
+        if (result == null) return Unauthorized("Sai tài khoản hoặc mật khẩu");
+        return Ok(result);
     }
-    
+
     [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterRequest register)
+    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
-        var (user,errorMessage) = await _authService.RegisterAsync(register);
-        if (user == null)
-        {
-            var msg = string.IsNullOrEmpty(errorMessage) ? "Đăng ký thất bại" : errorMessage;
-            return BadRequest(ApiResponse<AuthResponse>.Fail(msg));
-        }
-        return Ok(ApiResponse<object>.Ok());
+        var user = await _authService.RegisterAsync(request);
+        if (user == null) return BadRequest("Tài khoản đã tồn tại");
+        return Ok(new { message = "Đăng ký thành công", userId = user.Id });
     }
 }

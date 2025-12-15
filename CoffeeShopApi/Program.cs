@@ -4,9 +4,7 @@ using Scalar.AspNetCore;
 using System.Text;
 using System.Text.Json.Serialization;
 using CoffeeShopApi.Services;
-using CoffeeShopApi.Shared;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Microsoft.OpenApi.Models;
@@ -14,26 +12,8 @@ using Microsoft.OpenApi.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers()
-    .ConfigureApiBehaviorOptions(options =>
-    {
-        // Ghi đè hành vi mặc định khi Validate lỗi
-        options.InvalidModelStateResponseFactory = context =>
-        {
-            // 1. Lấy tất cả thông báo lỗi từ ModelState
-            var errors = context.ModelState.Values
-                .SelectMany(v => v.Errors)
-                .Select(e => e.ErrorMessage)
-                .ToList();
-
-            // 2. Tạo response theo chuẩn ApiResponse của bạn
-            // Dùng <object> vì lúc này không trả về data cụ thể nào
-            var response = ApiResponse<object>.Fail("Dữ liệu đầu vào không hợp lệ", errors);
-
-            // 3. Trả về BadRequest (400) kèm response đã bọc
-            return new BadRequestObjectResult(response);
-        };
-    });
-  
+    .AddJsonOptions(x => 
+        x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 
 // 1. Add services
 builder.Services.AddControllers();
