@@ -1,18 +1,22 @@
-﻿namespace CoffeeShopApi.DTOs;
+﻿using System.Collections.Generic;
+using System.ComponentModel;
+using CoffeeShopApi.Models;
+
+namespace CoffeeShopApi.DTOs;
 
 // Class con để hứng dữ liệu size + giá
 public class ProductDetailDto
 {
-    public string Size { get; set; } = "Standard";
+    public string Size { get; set; } = string.Empty;
     public decimal Price { get; set; }
 }
 
 public class CreateProductRequest
 {
     public string Name { get; set; } = string.Empty;
-    public string? Description { get; set; }
-    public string? ImageUrl { get; set; }
-    public string Category { get; set; } = "Coffee";
+    public string? Description { get; set; } = string.Empty;
+    public string? ImageUrl { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
     
     // Thay vì 1 giá, giờ nhận 1 danh sách
     public List<ProductDetailDto> Details { get; set; } = new();
@@ -21,3 +25,21 @@ public class CreateProductRequest
 public class UpdateProductRequest : CreateProductRequest
 {
 }
+
+public class ProductResponse
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; } = string.Empty;
+    public string? ImageUrl { get; set; } = string.Empty;
+    public CategoryResponse? Category { get; set; } = new();
+    public List<ProductDetailResponse> ProductDetails { get; set; } = new();
+}
+
+public class ProductDetailResponse
+{
+    public int Id { get; set; }
+    public string Size { get; set; } = string.Empty;
+    public decimal Price { get; set; }
+}
+

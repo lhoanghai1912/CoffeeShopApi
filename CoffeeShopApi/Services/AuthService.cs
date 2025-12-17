@@ -20,21 +20,28 @@ public class AuthService : IAuthService
 {
     private readonly AppDbContext _context;
     private readonly IConfiguration _configuration;
-    
-    public AuthService(AppDbContext context, IConfiguration configuration)
+    private readonly IRoleService _roleService;
+
+    public AuthService(AppDbContext context, IConfiguration configuration, IRoleService roleService)
     {
         _context = context;
         _configuration = configuration;
+        _roleService = roleService;
     }
 
     public async Task<AuthResponse?> LoginAsync(LoginRequest request)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == request.Username);
+        var user = await _context.Users
+            .Include(u => u.Role)
+            .FirstOrDefaultAsync(u => u.Username == request.Username);
         
         if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.Password))
         {
             return null;
         }
+
+
+        RoleResponse? roleResponse = _roleService.ToRoleResponse(user.Role);
 
         var token = GenerateJwtToken(user);
 
@@ -43,7 +50,7 @@ public class AuthService : IAuthService
             Id = user.Id,
             Username = user.Username,
             FullName = user.FullName,
-            // Role = user.Roles,
+            Role = roleResponse,
             PhoneNumber = user.PhoneNumber,
             Token = token 
             
@@ -87,14 +94,16 @@ public class AuthService : IAuthService
 
         string passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
+        int roleId = (request.RoleId == null || request.RoleId == 0) ? 1 : request.RoleId.Value;
+
         var newUser = new User
         {
             Username = request.Username,
             Password = passwordHash,
             FullName = request.FullName,
             PhoneNumber = request.PhoneNumber,
-            // Role = request.Role,
-        };
+            RoleId = roleId,
+        };      
 
         _context.Users.Add(newUser);
         await _context.SaveChangesAsync();

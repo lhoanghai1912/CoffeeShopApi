@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using CoffeeShopApi.Shared;
 
 namespace CoffeeShopApi.DTOs;
@@ -16,8 +17,9 @@ public class RegisterRequest
     [ValidPassword]
     public string Password { get; set; }
     public string? FullName { get; set; } 
-    public string? PhoneNumber { get; set; }
-    public string? Role { get; set; }
+    [DefaultValue("")]
+    public string? PhoneNumber { get; set; }= string.Empty;
+    public int? RoleId { get; set; }
 }
 
 public class AuthResponse
@@ -25,7 +27,7 @@ public class AuthResponse
     public int Id { get; set; }
     public string Username { get; set; }
     public string? FullName { get; set; }
-    public string? Role { get; set; }
+    public object? Role { get; set; }
     public string? PhoneNumber { get; set; } 
     public string Token { get; set; } 
 }

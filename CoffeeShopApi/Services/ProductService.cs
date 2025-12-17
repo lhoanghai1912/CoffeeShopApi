@@ -1,4 +1,8 @@
-﻿using CoffeeShopApi.Data;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using CoffeeShopApi.Data;
 using CoffeeShopApi.DTOs;
 using CoffeeShopApi.Models;
 using Microsoft.EntityFrameworkCore;
@@ -7,11 +11,12 @@ namespace CoffeeShopApi.Services;
 
 public interface IProductService
 {
-    Task<IEnumerable<Product>> GetAllAsync();
-    Task<Product?> GetByIdAsync(int id);
-    Task<Product> CreateAsync(CreateProductRequest request);
+    Task<IEnumerable<ProductResponse>> GetAllAsync();
+    Task<ProductResponse?> GetByIdAsync(int id);
+    Task<ProductResponse> CreateAsync(CreateProductRequest request);
     Task<bool> UpdateAsync(int id, UpdateProductRequest request);
     Task<bool> DeleteAsync(int id);
+    Task<PagedResult<ProductResponse>> GetPagedAsync(int page, int pageSize,string? search, string? orderBy, string? filter);
 }
 
 public class ProductService : IProductService
@@ -23,31 +28,34 @@ public class ProductService : IProductService
         _context = context;
     }
 
-    public async Task<IEnumerable<Product>> GetAllAsync()
+    public async Task<IEnumerable<ProductResponse>> GetAllAsync()
     {
-        // QUAN TRỌNG: Phải dùng Include để load kèm bảng con ProductDetails
-        return await _context.Products
-            .Include(p => p.ProductDetails) 
+        var products = await _context.Products
+            .Include(p => p.Category)
+            .Include(p => p.ProductDetails)
             .ToListAsync();
+
+        return products.Select(MapToResponse);
     }
 
-    public async Task<Product?> GetByIdAsync(int id)
+    public async Task<ProductResponse?> GetByIdAsync(int id)
     {
-        return await _context.Products
+        var product = await _context.Products
+            .Include(p => p.Category)
+            
             .Include(p => p.ProductDetails)
             .FirstOrDefaultAsync(p => p.Id == id);
+
+        return product == null ? null : MapToResponse(product);
     }
 
-    public async Task<Product> CreateAsync(CreateProductRequest request)
+    public async Task<ProductResponse> CreateAsync(CreateProductRequest request)
     {
-        // 1. Tạo Product cha
         var product = new Product
         {
             Name = request.Name,
             Description = request.Description,
             ImageUrl = request.ImageUrl,
-            Category = request.Category,
-            // 2. Map danh sách Size/Giá vào bảng con
             ProductDetails = request.Details.Select(d => new ProductDetail
             {
                 Size = d.Size,
@@ -57,33 +65,26 @@ public class ProductService : IProductService
 
         _context.Products.Add(product);
         await _context.SaveChangesAsync();
-        return product;
+        return MapToResponse(product);
     }
 
     public async Task<bool> UpdateAsync(int id, UpdateProductRequest request)
     {
-        // Load sản phẩm cũ kèm theo chi tiết cũ
         var product = await _context.Products
             .Include(p => p.ProductDetails)
             .FirstOrDefaultAsync(p => p.Id == id);
 
         if (product == null) return false;
 
-        // 1. Cập nhật thông tin chung (Cha)
         product.Name = request.Name;
         product.Description = request.Description;
-        product.Category = request.Category;
         product.ImageUrl = request.ImageUrl;
 
-        // 2. Cập nhật chi tiết (Con)
-        // Cách đơn giản nhất: Xóa hết chi tiết cũ, thêm chi tiết mới từ request
-        // (Lưu ý: Cách này sẽ làm thay đổi ID của ProductDetails, cẩn thận nếu có OrderDetail đang reference tới nó)
-        
-        _context.ProductDetails.RemoveRange(product.ProductDetails); // Xóa cũ
-        
+        _context.ProductDetails.RemoveRange(product.ProductDetails);
+
         foreach (var item in request.Details)
         {
-            product.ProductDetails.Add(new ProductDetail // Thêm mới
+            product.ProductDetails.Add(new ProductDetail
             {
                 Size = item.Size,
                 Price = item.Price,
@@ -98,11 +99,68 @@ public class ProductService : IProductService
     {
         var product = await _context.Products.FindAsync(id);
         if (product == null) return false;
-
-        // Vì đã cấu hình OnDelete(DeleteBehavior.Cascade) trong DbContext
-        // Nên chỉ cần xóa cha, EF Core sẽ tự xóa con
         _context.Products.Remove(product);
         await _context.SaveChangesAsync();
         return true;
+    }
+
+    public async Task<PagedResult<ProductResponse>> GetPagedAsync(int page, int pageSize, string? search, string? orderBy, string? filter)
+    {
+        var query = _context.Products
+            .Include(p => p.Category)
+            .Include(p => p.ProductDetails)
+            .AsQueryable();     
+
+        // Lọc theo tên sản phẩm
+        if (!string.IsNullOrEmpty(filter))
+        {
+            query = query.Where(p => p.Name.Contains(filter));
+        }
+
+        // Sắp xếp
+        if (!string.IsNullOrEmpty(orderBy))
+        {
+            if (orderBy.Equals("name", StringComparison.OrdinalIgnoreCase))
+                query = query.OrderBy(p => p.Name);
+            else if (orderBy.Equals("category", StringComparison.OrdinalIgnoreCase))
+                query = query.OrderBy(p => p.Category);
+        }
+
+        var totalRecords = await query.CountAsync();
+
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new PagedResult<ProductResponse>
+        {
+            Page = page,
+            PageSize = pageSize,
+            TotalRecords = totalRecords,
+            Items = items.Select(MapToResponse)
+        };
+    }
+
+    private static ProductResponse MapToResponse(Product product)
+    {
+        return new ProductResponse
+        {
+            Id = product.Id,
+            Name = product.Name,
+            Description = product.Description,
+            ImageUrl = product.ImageUrl,
+            Category = product.Category == null ? null : new CategoryResponse
+            {
+                Id = product.Category.Id,
+                Name = product.Category.Name
+            },
+            ProductDetails = product.ProductDetails.Select(d => new ProductDetailResponse
+            {
+                Id = d.Id,
+                Size = d.Size,
+                Price = d.Price
+            }).ToList()
+        };
     }
 }

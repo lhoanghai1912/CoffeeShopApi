@@ -67,6 +67,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // Đăng ký Services (Dependency Injection)
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<IRoleService, RoleService>();
+builder.Services.AddScoped<ICategoryservice, CategoriesService>();
 
 // CORS
 builder.Services.AddCors(options =>

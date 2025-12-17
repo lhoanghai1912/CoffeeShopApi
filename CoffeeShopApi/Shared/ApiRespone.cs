@@ -1,48 +1,66 @@
-﻿using System.Net;
+﻿using System.Collections.Generic;
+using System.Net;
 using System.Text.Json.Serialization;
 
 namespace CoffeeShopApi.Shared;
 
-public class ApiResponse
+public class ApiResponse<T>
 {
     public bool Success { get; set; }
-    public string Message { get; set; } = string.Empty;
-    public int Code { get; set; } // HTTP Status Code (200, 400, 401...)
+    public string? Message { get; set; } = string.Empty;
+    public int Status { get; set; } // HTTP Status code
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public object? Data { get; set; }
+    public T? Data { get; set; }
 
-    // Hàm tạo nhanh phản hồi Thành công
-    public static ApiResponse Ok(object data, string message = "Thành công")
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<string>? Errors { get; set; }
+
+    // Thành công
+    public static ApiResponse<T> Ok(T? data = default, string? message = "Thành công")
     {
-        return new ApiResponse
+        return new ApiResponse<T>
         {
             Success = true,
             Message = message,
-            Code = 200,
+            Status = (int)HttpStatusCode.OK,
             Data = data
         };
     }
 
-    // Hàm tạo nhanh phản hồi Thất bại
-    public static ApiResponse NotFoundException(string message)
+    // Thất bại chung (BadRequest)
+    public static ApiResponse<T> Fail(string message, List<string>? errors = null)
     {
-        return new ApiResponse
+        return new ApiResponse<T>
         {
             Success = false,
             Message = message,
-            Code = (int)HttpStatusCode.NotFound
+            Status = (int)HttpStatusCode.BadRequest,
+            Errors = errors
         };
     }
 
-
-    public static ApiResponse BadRequestException(string message)
+    // Không tìm thấy (NotFound)
+    public static ApiResponse<T> NotFound(string message = "Không tìm thấy dữ liệu")
     {
-        return new ApiResponse
+        return new ApiResponse<T>
         {
             Success = false,
             Message = message,
-            Code = (int)HttpStatusCode.BadRequest
+            Status = (int)HttpStatusCode.NotFound,
+            Data = default
+        };
+    }
+
+    // Lỗi Server (500)
+    public static ApiResponse<T> ServerError(string message)
+    {
+        return new ApiResponse<T>
+        {
+            Success = false,
+            Message = message,
+            Status = (int)HttpStatusCode.InternalServerError,
+            Data = default
         };
     }
 }
