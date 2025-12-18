@@ -8,6 +8,7 @@ namespace CoffeeShopApi.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
+//[ApiExplorerSettings(IgnoreApi = true)]
 
 public class RolesController : ControllerBase
 {
@@ -41,7 +42,7 @@ public class RolesController : ControllerBase
     public async Task<IActionResult> GetById(int id)
     {
         var role = await _service.GetByIdAsync(id);
-        if (role == null) return NotFound();
+        if (role == null) return NotFound(ApiResponse<object>.NotFound());
         return Ok(ApiResponse<object>.Ok(role));
     }
 

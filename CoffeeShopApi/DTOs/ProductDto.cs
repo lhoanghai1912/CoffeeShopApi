@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using System.ComponentModel;
-using CoffeeShopApi.Models;
 
 namespace CoffeeShopApi.DTOs;
 
@@ -16,10 +15,20 @@ public class CreateProductRequest
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; } = string.Empty;
     public string? ImageUrl { get; set; } = string.Empty;
-    public string Category { get; set; } = string.Empty;
-    
-    // Thay vì 1 giá, giờ nhận 1 danh sách
-    public List<ProductDetailDto> Details { get; set; } = new();
+
+    // FE gửi category id as { "id": 3 } or just categoryId; service expects CategoryId
+    public int? CategoryId { get; set; }
+    // Or FE gửi nested category object { "category": { "id": 3, "name": "..." } }
+    public CategoryDto? Category { get; set; }
+
+    // Nullable so we can distinguish between omitted (null) and explicit empty list ([])
+    public List<ProductDetailDto>? ProductDetails { get; set; }
+}
+
+public class CategoryDto
+{
+    // Nullable so binder accepts null and controller can return custom ApiResponse
+    public int? Id { get; set; }
 }
 
 public class UpdateProductRequest : CreateProductRequest

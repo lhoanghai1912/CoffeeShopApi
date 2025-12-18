@@ -16,6 +16,8 @@ public class CategoriesController :  ControllerBase
         _service = service;
     }
 
+    
+    
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {

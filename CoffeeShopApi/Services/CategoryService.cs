@@ -14,9 +14,11 @@ public interface ICategoryservice
     Task<CategoryResponse> CreateAsync(CreateCategoryRequest request);
     Task<bool> UpdateAsync(int id, UpdateCategoryRequest request);
     Task<bool> DeleteAsync(int id);
-    Task<PagedResult<CategoryResponse>> GetPagedAsync(int page, int pageSize,string? search, string? orderBy, string? filter);
+    // Task<PagedResult<CategoryResponse>> GetPagedAsync(int page, int pageSize,string? search, string? orderBy, string? filter);
 
 }
+
+
 
 public class CategoriesService : ICategoryservice
 {
@@ -33,6 +35,31 @@ public class CategoriesService : ICategoryservice
         return Categories.Select(MapToResponse);
     }
 
+    // public async Task<PagedResult<CategoryResponse>> GetPagedAsync(int page, int pageSize, string? search, string? orderBy, string? filter)
+    // {
+    //     var query = _context.Categories.AsQueryable();
+    //
+    //     // search
+    //     if (!string.IsNullOrWhiteSpace(search))
+    //     {
+    //         query = query.SearchContains(search, "Name");
+    //     }
+    //
+    //     // filters
+    //     if (!string.IsNullOrWhiteSpace(filter))
+    //     {
+    //         query = query.ApplyFilters(filter);
+    //     }
+    //
+    //     // ordering
+    //     if (!string.IsNullOrWhiteSpace(orderBy))
+    //     {
+    //         query = query.ApplyOrdering(orderBy);
+    //     }
+    //
+    //     return await query.ToPagedResultAsync(page, pageSize, MapToResponse);
+    // }
+    //
     public CategoryResponse? ToCategoryResponse(Category? Category)
     {
         if (Category == null) return null;
@@ -87,27 +114,27 @@ public class CategoriesService : ICategoryservice
         return true;
     }
 
-    public async Task<PagedResult<CategoryResponse>> GetPagedAsync(int page, int pageSize, string? search, string? orderBy, string? filter)
-    {
-        var query = _context.Categories.AsQueryable();
-        if (!string.IsNullOrEmpty(filter))
-            query = query.Where(r => r.Name.Contains(filter) );
-
-        if (!string.IsNullOrEmpty(orderBy))
-        {
-            if (orderBy.Equals("name", StringComparison.OrdinalIgnoreCase))
-                query = query.OrderBy(r => r.Name);
-        }
-
-        var total = await query.CountAsync();
-        var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
-
-        return new PagedResult<CategoryResponse>
-        {
-            Page = page,
-            PageSize = pageSize,
-            TotalRecords = total,
-            Items = items.Select(MapToResponse)
-        };
-    }
+    // public async Task<PagedResult<CategoryResponse>> GetPagedAsync(int page, int pageSize, string? search, string? orderBy, string? filter)
+    // {
+    //     var query = _context.Categories.AsQueryable();
+    //     if (!string.IsNullOrEmpty(filter))
+    //         query = query.Where(r => r.Name.Contains(filter) );
+    //
+    //     if (!string.IsNullOrEmpty(orderBy))
+    //     {
+    //         if (orderBy.Equals("name", StringComparison.OrdinalIgnoreCase))
+    //             query = query.OrderBy(r => r.Name);
+    //     }
+    //
+    //     var total = await query.CountAsync();
+    //     var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+    //
+    //     return new PagedResult<CategoryResponse>
+    //     {
+    //         Page = page,
+    //         PageSize = pageSize,
+    //         TotalRecords = total,
+    //         Items = items.Select(MapToResponse)
+    //     };
+    // }
 }

@@ -6,6 +6,7 @@ using CoffeeShopApi.Data;
 using CoffeeShopApi.DTOs;
 using CoffeeShopApi.Models;
 using Microsoft.EntityFrameworkCore;
+using Gridify;
 
 namespace CoffeeShopApi.Services;
 
@@ -16,7 +17,7 @@ public interface IProductService
     Task<ProductResponse> CreateAsync(CreateProductRequest request);
     Task<bool> UpdateAsync(int id, UpdateProductRequest request);
     Task<bool> DeleteAsync(int id);
-    Task<PagedResult<ProductResponse>> GetPagedAsync(int page, int pageSize,string? search, string? orderBy, string? filter);
+    Task<PaginatedResponse<ProductResponse>> GetPagedAsync(int page, int pageSize,string? search, string? orderBy, string? filter);
 }
 
 public class ProductService : IProductService
@@ -50,22 +51,62 @@ public class ProductService : IProductService
     }
 
     public async Task<ProductResponse> CreateAsync(CreateProductRequest request)
-    {
+    {           
+        // determine category id: support either CategoryId or nested Category { id }
+        int? categoryId = request.CategoryId;
+        // if request has nested Category object, try reading it via reflection-safe property
+        var categoryProp = request.GetType().GetProperty("Category");
+        if (categoryId == null && categoryProp != null)
+        {
+            var catObj = categoryProp.GetValue(request);
+            if (catObj != null)
+            {
+                var idProp = catObj.GetType().GetProperty("Id");
+                if (idProp != null)
+                {
+                    var idVal = idProp.GetValue(catObj);
+                    if (idVal is int idInt) categoryId = idInt;
+                }
+            }
+        }
+
+        var details = request.ProductDetails ?? new List<ProductDetailDto>();
+
         var product = new Product
         {
             Name = request.Name,
             Description = request.Description,
             ImageUrl = request.ImageUrl,
-            ProductDetails = request.Details.Select(d => new ProductDetail
+            ProductDetails = details.Select(d => new ProductDetail
             {
                 Size = d.Size,
                 Price = d.Price,
             }).ToList()
         };
 
+        // If frontend provided CategoryId, validate it and set
+        if (categoryId != null)
+        {
+            var category = await _context.Categories.FindAsync(categoryId.Value);
+            if (category == null)
+                throw new ArgumentException("Category not found");
+
+            product.CategoryId = category.Id;
+            product.Category = category;
+        }
+
         _context.Products.Add(product);
         await _context.SaveChangesAsync();
-        return MapToResponse(product);
+
+        // Reload product with related data for response
+        var created = await _context.Products
+            .Include(p => p.Category)
+            .Include(p => p.ProductDetails)
+            .FirstOrDefaultAsync(p => p.Id == product.Id);
+
+        if (created == null) throw new InvalidOperationException("Created product not found");
+
+        return MapToResponse(created);
     }
 
     public async Task<bool> UpdateAsync(int id, UpdateProductRequest request)
@@ -79,16 +120,45 @@ public class ProductService : IProductService
         product.Name = request.Name;
         product.Description = request.Description;
         product.ImageUrl = request.ImageUrl;
-
-        _context.ProductDetails.RemoveRange(product.ProductDetails);
-
-        foreach (var item in request.Details)
+        // determine category id (support nested Category object or CategoryId)
+        int? updCategoryId = request.CategoryId;
+        var categoryProp2 = request.GetType().GetProperty("Category");
+        if (updCategoryId == null && categoryProp2 != null)
         {
-            product.ProductDetails.Add(new ProductDetail
+            var catObj = categoryProp2.GetValue(request);
+            if (catObj != null)
             {
-                Size = item.Size,
-                Price = item.Price,
-            });
+                var idProp = catObj.GetType().GetProperty("Id");
+                if (idProp != null)
+                {
+                    var idVal = idProp.GetValue(catObj);
+                    if (idVal is int idInt) updCategoryId = idInt;
+                }
+            }
+        }
+
+        if (updCategoryId != null)
+        {
+            var category = await _context.Categories.FindAsync(updCategoryId.Value);
+            if (category == null)
+                throw new ArgumentException("Category not found");
+            product.CategoryId = category.Id;
+            product.Category = category;
+        }
+
+        // update details only when provided (if null -> keep existing; if empty list -> clear)
+        if (request.ProductDetails != null)
+        {
+            _context.ProductDetails.RemoveRange(product.ProductDetails);
+
+            foreach (var item in request.ProductDetails)
+            {
+                product.ProductDetails.Add(new ProductDetail
+                {
+                    Size = item.Size,
+                    Price = item.Price,
+                });
+            }
         }
 
         await _context.SaveChangesAsync();
@@ -104,42 +174,45 @@ public class ProductService : IProductService
         return true;
     }
 
-    public async Task<PagedResult<ProductResponse>> GetPagedAsync(int page, int pageSize, string? search, string? orderBy, string? filter)
+    public async Task<PaginatedResponse<ProductResponse>> GetPagedAsync(int page, int pageSize, string? search, string? orderBy, string? filter)
     {
-        var query = _context.Products
-            .Include(p => p.Category)
-            .Include(p => p.ProductDetails)
-            .AsQueryable();     
+        page = Math.Max(1, page);
+        pageSize = Math.Max(1, Math.Min(100, pageSize));
 
-        // Lọc theo tên sản phẩm
-        if (!string.IsNullOrEmpty(filter))
-        {
-            query = query.Where(p => p.Name.Contains(filter));
-        }
+        var query = _context.Products.AsQueryable();
 
-        // Sắp xếp
-        if (!string.IsNullOrEmpty(orderBy))
-        {
-            if (orderBy.Equals("name", StringComparison.OrdinalIgnoreCase))
-                query = query.OrderBy(p => p.Name);
-            else if (orderBy.Equals("category", StringComparison.OrdinalIgnoreCase))
-                query = query.OrderBy(p => p.Category);
-        }
-
-        var totalRecords = await query.CountAsync();
-
-        var items = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
-
-        return new PagedResult<ProductResponse>
+        // Build Gridify query
+        var gridifyQuery = new GridifyQuery
         {
             Page = page,
             PageSize = pageSize,
-            TotalRecords = totalRecords,
-            Items = items.Select(MapToResponse)
+            Filter = filter,
+            OrderBy = orderBy   
         };
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchValue = search.Trim().ToLower();
+            query = query.Where(p => (p.Name != null && p.Name.ToLower().Contains(searchValue))
+                                   || (p.Description != null && p.Description.ToLower().Contains(searchValue)));
+        }
+
+        query = query.ApplyFiltering(gridifyQuery).ApplyOrdering(gridifyQuery);
+
+
+        query = query.ApplyPaging(gridifyQuery);
+        var totalCount = await query.CountAsync();
+
+        // Now apply includes and materialize
+        var items = await query
+            .Include(p => p.Category)
+            .Include(p => p.ProductDetails)
+            .AsNoTracking()
+            .ToListAsync();
+
+        var mapped = items.Select(MapToResponse).ToList();
+
+        return new PaginatedResponse<ProductResponse>(mapped, totalCount, page, pageSize);
     }
 
     private static ProductResponse MapToResponse(Product product)

@@ -14,7 +14,7 @@ public class RegisterRequest
 {
     public string Username { get; set; }
     
-    [ValidPassword]
+    // [ValidPassword]
     public string Password { get; set; }
     public string? FullName { get; set; } 
     [DefaultValue("")]

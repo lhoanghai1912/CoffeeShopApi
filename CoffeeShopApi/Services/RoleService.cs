@@ -1,0 +1,98 @@
+﻿using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using CoffeeShopApi.Data;
+using CoffeeShopApi.DTOs;
+using CoffeeShopApi.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace CoffeeShopApi.Services;
+
+public interface IRoleService
+{
+    RoleResponse? ToRoleResponse(Role? role);
+    Task<IEnumerable<RoleResponse>> GetAllAsync();
+    Task<RoleResponse?> GetByIdAsync(int id);
+    Task<RoleResponse> CreateAsync(CreateRoleRequest request);
+    Task<bool> UpdateAsync(int id, UpdateRoleRequest request);
+    Task<bool> DeleteAsync(int id);
+}
+
+public class RoleService : IRoleService
+{
+    private readonly AppDbContext _context;
+
+    public RoleService(AppDbContext context)
+    {
+        _context = context;
+    }
+
+    public RoleResponse? ToRoleResponse(Role? role)
+    {
+        if (role == null) return null;
+        return new RoleResponse
+        {
+            Id = role.Id,
+            Code = role.Code,
+            Name = role.Name
+        };
+    }
+
+    public async Task<IEnumerable<RoleResponse>> GetAllAsync()
+    {
+        var roles = await _context.Roles
+            .AsNoTracking()
+            .OrderBy(r => r.Name)
+            .ToListAsync();
+
+        // Ensure mapping is materialized to preserve ordering
+        return roles.Select(MapToResponse).ToList();
+    }
+
+    public async Task<RoleResponse?> GetByIdAsync(int id)
+    {
+        var role = await _context.Roles.FindAsync(id);
+        return role == null ? null : MapToResponse(role);
+    }
+
+    public async Task<RoleResponse> CreateAsync(CreateRoleRequest request)
+    {
+        var role = new Role
+        {
+            Code = request.Code,
+            Name = request.Name
+        };
+        _context.Roles.Add(role);
+        await _context.SaveChangesAsync();
+        return MapToResponse(role);
+    }
+
+    public async Task<bool> UpdateAsync(int id, UpdateRoleRequest request)
+    {
+        var role = await _context.Roles.FindAsync(id);
+        if (role == null) return false;
+        role.Code = request.Code;
+        role.Name = request.Name;
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> DeleteAsync(int id)
+    {
+        var role = await _context.Roles.FindAsync(id);
+        if (role == null) return false;
+        _context.Roles.Remove(role);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    private static RoleResponse MapToResponse(Role role)
+    {
+        return new RoleResponse
+        {
+            Id = role.Id,
+            Code = role.Code,
+            Name = role.Name
+        };
+    }
+}
