@@ -4,7 +4,9 @@ using Scalar.AspNetCore;
 using System.Text;
 using System.Text.Json.Serialization;
 using CoffeeShopApi.Services;
+using CoffeeShopApi.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Microsoft.OpenApi.Models;
@@ -34,6 +36,29 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
         };
     });
+
+// ✅ Authorization - Đăng ký Permission Handler
+builder.Services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
+
+builder.Services.AddAuthorization(options =>
+{
+    // Tự động tạo policies cho các permissions
+    var permissions = new[]
+    {
+        "product.view", "product.create", "product.update", "product.delete",
+        "category.view", "category.create", "category.update", "category.delete",
+        "order.view.own", "order.view.all", "order.create", "order.update.own", "order.update.all",
+        "order.cancel.own", "order.cancel.all",
+        "user.view.own", "user.view.all", "user.update.own", "user.update.all", "user.delete",
+        "role.manage", "permission.assign"
+    };
+
+    foreach (var permission in permissions)
+    {
+        options.AddPolicy($"RequirePermission:{permission}", policy =>
+            policy.Requirements.Add(new PermissionRequirement(permission)));
+    }
+});
 
 // Authorize 
 builder.Services.AddSwaggerGen(c =>
@@ -76,7 +101,6 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowAll",
         b => b.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 });
-
 
 var app = builder.Build();
 

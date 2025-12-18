@@ -1,15 +1,17 @@
-﻿using System.Threading.Tasks;
+﻿using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+using CoffeeShopApi.Attributes;
 using CoffeeShopApi.DTOs;
 using CoffeeShopApi.Services;
 using CoffeeShopApi.Shared;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CoffeeShopApi.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-//[ApiExplorerSettings(IgnoreApi = true)]
-
+[Authorize] // ✅ Bắt buộc phải login
 public class RolesController : ControllerBase
 {
     private readonly IRoleService _service;
@@ -18,20 +20,10 @@ public class RolesController : ControllerBase
     {
         _service = service;
     }
-    
-    // [HttpGet]
-    // public async Task<IActionResult> GetPaged(
-    //     [FromQuery] int page = 1,
-    //     [FromQuery] int pageSize = 10,
-    //     [FromQuery] string? search = null,
-    //     [FromQuery] string? filter = null,
-    //     [FromQuery] string? orderBy = null)
-    // {
-    //     var result = await _service.GetPagedAsync(page, pageSize, search, filter, orderBy);
-    //     return Ok(ApiResponse<object>.Ok(result));
-    // }
 
     [HttpGet]
+    [AllowAnonymous] // ✅ Public
+    //[RequirePermission("role.manage")] // ✅ Chỉ ADMIN xem được danh sách roles
     public async Task<IActionResult> GetAll()
     {
         var result = await _service.GetAllAsync();
@@ -39,6 +31,8 @@ public class RolesController : ControllerBase
     }
     
     [HttpGet("{id}")]
+    [AllowAnonymous] // ✅ Public
+    //[RequirePermission("role.manage")] // ✅ Chỉ ADMIN xem được chi tiết role
     public async Task<IActionResult> GetById(int id)
     {
         var role = await _service.GetByIdAsync(id);
@@ -47,6 +41,8 @@ public class RolesController : ControllerBase
     }
 
     [HttpPost]
+    [AllowAnonymous] // ✅ Public
+    //[RequirePermission("role.manage")] // ✅ Chỉ ADMIN tạo được role
     public async Task<IActionResult> Create(CreateRoleRequest request)
     {
         var created = await _service.CreateAsync(request);
@@ -54,6 +50,8 @@ public class RolesController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [AllowAnonymous] // ✅ Public
+    //[RequirePermission("role.manage")] // ✅ Chỉ ADMIN sửa được role
     public async Task<IActionResult> Update(int id, UpdateRoleRequest request)
     {
         var success = await _service.UpdateAsync(id, request);
@@ -62,6 +60,8 @@ public class RolesController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [AllowAnonymous] // ✅ Public
+    //[RequirePermission("role.manage")] // ✅ Chỉ ADMIN xóa được role
     public async Task<IActionResult> Delete(int id)
     {
         var success = await _service.DeleteAsync(id);

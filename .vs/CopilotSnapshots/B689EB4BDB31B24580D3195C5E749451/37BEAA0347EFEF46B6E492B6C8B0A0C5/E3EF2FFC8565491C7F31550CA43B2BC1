@@ -1,0 +1,46 @@
+﻿using System.Collections.Generic;
+using System.ComponentModel;
+
+namespace CoffeeShopApi.DTOs;
+
+// Class con để hứng dữ liệu size + giá
+public class ProductDetailDto
+{
+    public string Size { get; set; } = string.Empty;
+    public decimal Price { get; set; }
+}
+
+public class CreateProductRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; } = string.Empty;
+    public string? ImageUrl { get; set; } = string.Empty;
+
+    // FE gửi category id as { "id": 3 } or just categoryId; service expects CategoryId
+    public int? CategoryId { get; set; }
+
+    // Nullable so we can distinguish between omitted (null) and explicit empty list ([])
+    public List<ProductDetailDto>? ProductDetails { get; set; }
+}
+
+public class UpdateProductRequest : CreateProductRequest
+{
+}
+
+public class ProductResponse
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; } = string.Empty;
+    public string? ImageUrl { get; set; } = string.Empty;
+    public CategoryResponse? Category { get; set; } = new();
+    public List<ProductDetailResponse> ProductDetails { get; set; } = new();
+}
+
+public class ProductDetailResponse
+{
+    public int Id { get; set; }
+    public string Size { get; set; } = string.Empty;
+    public decimal Price { get; set; }
+}
+

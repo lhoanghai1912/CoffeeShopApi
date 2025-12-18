@@ -1,6 +1,8 @@
 ﻿using CoffeeShopApi.DTOs;
 using CoffeeShopApi.Services;
 using CoffeeShopApi.Shared;
+using CoffeeShopApi.Attributes;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CoffeeShopApi.Controllers;
@@ -8,7 +10,7 @@ namespace CoffeeShopApi.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-//[ApiExplorerSettings(IgnoreApi = true)]
+[Authorize] // ✅ Bắt buộc phải login
 
 public class ProductsController : ControllerBase
 {
@@ -20,6 +22,7 @@ public class ProductsController : ControllerBase
     }
 
     [HttpGet("Paged")]
+    [AllowAnonymous] // ✅ Public - không cần login
     public async Task<IActionResult> GetAllPaginated(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10,
@@ -32,6 +35,7 @@ public class ProductsController : ControllerBase
     }
     
     [HttpGet]
+    [AllowAnonymous] // ✅ Public - không cần login
     public async Task<IActionResult> GetAll()
     {
         var result = await _service.GetAllAsync();
@@ -39,6 +43,7 @@ public class ProductsController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [AllowAnonymous] // ✅ Public - không cần login
     public async Task<IActionResult> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -47,6 +52,8 @@ public class ProductsController : ControllerBase
     }
     
     [HttpPost]
+    [AllowAnonymous] // ✅ Public
+    //[RequirePermission("product.create")] // ✅ Chỉ ADMIN và STAFF được tạo
     public async Task<IActionResult> Create(CreateProductRequest request)
     {
         // validate request fields and collect errors
@@ -87,6 +94,8 @@ public class ProductsController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [AllowAnonymous] // ✅ Public
+    //[RequirePermission("product.update")] // ✅ Chỉ ADMIN và STAFF được sửa
     public async Task<IActionResult> Update(int id, UpdateProductRequest request)
     {
         // validate request fields and collect errors
@@ -128,10 +137,12 @@ public class ProductsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [AllowAnonymous] // ✅ Public
+    //[RequirePermission("product.delete")] // ✅ Chỉ ADMIN được xóa
     public async Task<IActionResult> Delete(int id)
     {
         var success = await _service.DeleteAsync(id);
         if (!success) return NotFound(ApiResponse<object>.NotFound());
         return Ok(ApiResponse<object>.Ok(success, "Xóa product thành công"));
     }
-}       
+}

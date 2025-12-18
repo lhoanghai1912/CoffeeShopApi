@@ -1,0 +1,208 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using CoffeeShopApi.Data;
+using CoffeeShopApi.DTOs;
+using CoffeeShopApi.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace CoffeeShopApi.Services;
+
+public interface IProductService
+{
+    Task<IEnumerable<ProductResponse>> GetAllAsync();
+    Task<ProductResponse?> GetByIdAsync(int id);
+    Task<ProductResponse> CreateAsync(CreateProductRequest request);
+    Task<bool> UpdateAsync(int id, UpdateProductRequest request);
+    Task<bool> DeleteAsync(int id);
+    Task<PaginatedResponse<ProductResponse>> GetPagedAsync(int page, int pageSize,string? search, string? orderBy, string? filter);
+}
+
+public class ProductService : IProductService
+{
+    private readonly AppDbContext _context;
+
+    public ProductService(AppDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<IEnumerable<ProductResponse>> GetAllAsync()
+    {
+        var products = await _context.Products
+            .Include(p => p.Category)
+            .Include(p => p.ProductDetails)
+            .ToListAsync();
+
+        return products.Select(MapToResponse);
+    }
+
+    public async Task<ProductResponse?> GetByIdAsync(int id)
+    {
+        var product = await _context.Products
+            .Include(p => p.Category)
+            
+            .Include(p => p.ProductDetails)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        return product == null ? null : MapToResponse(product);
+    }
+
+    public async Task<ProductResponse> CreateAsync(CreateProductRequest request)
+    {           
+        // determine category id: support either CategoryId or nested Category { id }
+        int? categoryId = request.CategoryId ?? request.Category?.Id;
+
+        var details = request.ProductDetails ?? new List<ProductDetailDto>();
+
+        var product = new Product
+        {
+            Name = request.Name,
+            Description = request.Description,
+            ImageUrl = request.ImageUrl,
+            ProductDetails = details.Select(d => new ProductDetail
+            {
+                Size = d.Size,
+                Price = d.Price,
+            }).ToList()
+        };
+
+        // If frontend provided CategoryId, validate it and set
+        if (categoryId != null)
+        {
+            var category = await _context.Categories.FindAsync(categoryId.Value);
+            if (category == null)
+                throw new ArgumentException("Category not found");
+
+            product.CategoryId = category.Id;
+            product.Category = category;
+        }
+
+        _context.Products.Add(product);
+        await _context.SaveChangesAsync();
+
+        // Reload product with related data for response
+        var created = await _context.Products
+            .Include(p => p.Category)
+            .Include(p => p.ProductDetails)
+            .FirstOrDefaultAsync(p => p.Id == product.Id);
+
+        if (created == null) throw new InvalidOperationException("Created product not found");
+
+        return MapToResponse(created);
+    }
+
+    public async Task<bool> UpdateAsync(int id, UpdateProductRequest request)
+    {
+        var product = await _context.Products
+            .Include(p => p.ProductDetails)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (product == null) return false;
+
+        product.Name = request.Name;
+        product.Description = request.Description;
+        product.ImageUrl = request.ImageUrl;
+        // determine category id (support nested Category object or CategoryId)
+        int? updCategoryId = request.CategoryId ?? request.Category?.Id;
+
+        if (updCategoryId != null)
+        {
+            var category = await _context.Categories.FindAsync(updCategoryId.Value);
+            if (category == null)
+                throw new ArgumentException("Category not found");
+            product.CategoryId = category.Id;
+            product.Category = category;
+        }
+
+        // update details only when provided (if null -> keep existing; if empty list -> clear)
+        if (request.ProductDetails != null)
+        {
+            _context.ProductDetails.RemoveRange(product.ProductDetails);
+
+            foreach (var item in request.ProductDetails)
+            {
+                product.ProductDetails.Add(new ProductDetail
+                {
+                    Size = item.Size,
+                    Price = item.Price,
+                });
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> DeleteAsync(int id)
+    {
+        var product = await _context.Products.FindAsync(id);
+        if (product == null) return false;
+        _context.Products.Remove(product);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<PaginatedResponse<ProductResponse>> GetPagedAsync(int page, int pageSize, string? search, string? orderBy, string? filter)
+    {
+        var query = _context.Products
+            .Include(p => p.Category)
+            .Include(p => p.ProductDetails)
+            .AsQueryable();     
+    
+        // Lọc theo tên sản phẩm
+        if (!string.IsNullOrEmpty(filter))
+        {
+            query = query.Where(p => p.Name.Contains(filter));
+        }
+    
+        // Sắp xếp
+        if (!string.IsNullOrEmpty(orderBy))
+        {
+            if (orderBy.Equals("name", StringComparison.OrdinalIgnoreCase))
+                query = query.OrderBy(p => p.Name);
+            else if (orderBy.Equals("category", StringComparison.OrdinalIgnoreCase))
+                query = query.OrderBy(p => p.Category);
+        }
+    
+        var totalCount = await query.CountAsync();
+        var totalPages  = (int)Math.Ceiling((double)totalCount / pageSize);
+    
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+    
+        return new PaginatedResponse<ProductResponse>(items, totalPages, totalCount);
+        {
+            PageNumber = page,
+            PageSize = pageSize,
+            TotalPages = totalPages,
+            TotalCount = totalCount,
+            Items = items.Select(MapToResponse)
+        };
+    }
+
+    private static ProductResponse MapToResponse(Product product)
+    {
+        return new ProductResponse
+        {
+            Id = product.Id,
+            Name = product.Name,
+            Description = product.Description,
+            ImageUrl = product.ImageUrl,
+            Category = product.Category == null ? null : new CategoryResponse
+            {
+                Id = product.Category.Id,
+                Name = product.Category.Name
+            },
+            ProductDetails = product.ProductDetails.Select(d => new ProductDetailResponse
+            {
+                Id = d.Id,
+                Size = d.Size,
+                Price = d.Price
+            }).ToList()
+        };
+    }
+}

@@ -1,6 +1,7 @@
 ﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 using CoffeeShopApi.Data;
 using CoffeeShopApi.DTOs;
 using CoffeeShopApi.Models;
@@ -33,6 +34,8 @@ public class AuthService : IAuthService
     {
         var user = await _context.Users
             .Include(u => u.Role)
+                .ThenInclude(r => r.RolePermissions)
+                .ThenInclude(rp => rp.Permission)
             .FirstOrDefaultAsync(u => u.Username == request.Username);
         
         if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.Password))
@@ -40,10 +43,14 @@ public class AuthService : IAuthService
             return null;
         }
 
-
         RoleResponse? roleResponse = _roleService.ToRoleResponse(user.Role);
 
-        var token = GenerateJwtToken(user);
+        // Lấy danh sách permissions của user
+        var permissions = user.Role.RolePermissions
+            .Select(rp => rp.Permission.Code)
+            .ToList();
+
+        var token = GenerateJwtToken(user, permissions);
 
         return new AuthResponse
         {
@@ -53,12 +60,11 @@ public class AuthService : IAuthService
             Role = roleResponse,
             PhoneNumber = user.PhoneNumber,
             Token = token 
-            
         };
     }
 
-    // Hàm phụ trợ để sinh chuỗi JWT
-    private string GenerateJwtToken(User user)
+    // Hàm phụ trợ để sinh chuỗi JWT với permissions
+    private string GenerateJwtToken(User user, List<string> permissions)
     {
         var jwtSettings = _configuration.GetSection("Jwt");
         var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]!);
@@ -66,21 +72,29 @@ public class AuthService : IAuthService
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new("userId", user.Id.ToString()),
+            new("username", user.Username),
             new("fullName", user.FullName ?? ""),
-            
+            new(ClaimTypes.Role, user.Role.Code), // Role claim (ADMIN, CUSTOMER, STAFF)
+            new("roleId", user.Role.Id.ToString()),
+            new("roleName", user.Role.Name)
         };
+
+        // Thêm permissions vào claims
+        foreach (var permission in permissions)
+        {
+            claims.Add(new Claim("permissions", permission));
+        }
 
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.UtcNow.AddHours(2), // Token sống trong 2 giờ
+            Expires = DateTime.UtcNow.AddHours(8), // Token sống 8 giờ
             Issuer = jwtSettings["Issuer"],
             Audience = jwtSettings["Audience"],
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
         };
-
-        //token fullname va id
         
         var tokenHandler = new JwtSecurityTokenHandler();
         var token = tokenHandler.CreateToken(tokenDescriptor);
@@ -94,7 +108,21 @@ public class AuthService : IAuthService
 
         string passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
-        int roleId = (request.RoleId == null || request.RoleId == 0) ? 1 : request.RoleId.Value;
+        // ✅ BẢO MẬT: Không cho user tự chọn role admin (roleId = 1)
+        // Mặc định tạo account customer (roleId = 2)
+        int roleId = 2; // CUSTOMER
+        
+        // Chỉ cho phép admin tạo account với role khác
+        // (Logic này sẽ được implement sau khi có authorization)
+        if (request.RoleId.HasValue && request.RoleId.Value != 1)
+        {
+            // Validate roleId tồn tại
+            var roleExists = await _context.Roles.AnyAsync(r => r.Id == request.RoleId.Value);
+            if (roleExists)
+            {
+                roleId = request.RoleId.Value;
+            }
+        }
 
         var newUser = new User
         {
