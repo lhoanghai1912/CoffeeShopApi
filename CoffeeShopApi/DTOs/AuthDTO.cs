@@ -1,24 +1,39 @@
 ﻿using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using CoffeeShopApi.Shared;
+using CoffeeShopApi.Validation;
 
 namespace CoffeeShopApi.DTOs;
 
 public class LoginRequest
 {
+    [Required(ErrorMessage = "Tên đăng nhập là bắt buộc")]
     public string Username { get; set; }
+
+    [Required(ErrorMessage = "Mật khẩu là bắt buộc")]
     public string Password { get; set; }
 }
 
 public class RegisterRequest
 {
+    [DefaultValue("")]
+    [Required(ErrorMessage = "Tên đăng nhập là bắt buộc")]
     public string Username { get; set; }
     
-    // [ValidPassword]
+    
+    [DefaultValue("")]
+    [Required(ErrorMessage = "Mật khẩu là bắt buộc")]
+    [PasswordComplexity]
     public string Password { get; set; }
+    [DefaultValue("")]
+
     public string? FullName { get; set; } 
     [DefaultValue("")]
     public string? PhoneNumber { get; set; }= string.Empty;
+    [DefaultValue(1)]
+
+    [JsonIgnore]
     public int? RoleId { get; set; }
 }
 

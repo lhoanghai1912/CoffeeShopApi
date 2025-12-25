@@ -22,7 +22,6 @@ public class RolesController : ControllerBase
     }
 
     [HttpGet]
-    [AllowAnonymous] // ✅ Public
     //[RequirePermission("role.manage")] // ✅ Chỉ ADMIN xem được danh sách roles
     public async Task<IActionResult> GetAll()
     {
@@ -31,7 +30,6 @@ public class RolesController : ControllerBase
     }
     
     [HttpGet("{id}")]
-    [AllowAnonymous] // ✅ Public
     //[RequirePermission("role.manage")] // ✅ Chỉ ADMIN xem được chi tiết role
     public async Task<IActionResult> GetById(int id)
     {
@@ -41,7 +39,6 @@ public class RolesController : ControllerBase
     }
 
     [HttpPost]
-    [AllowAnonymous] // ✅ Public
     //[RequirePermission("role.manage")] // ✅ Chỉ ADMIN tạo được role
     public async Task<IActionResult> Create(CreateRoleRequest request)
     {
@@ -50,7 +47,6 @@ public class RolesController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [AllowAnonymous] // ✅ Public
     //[RequirePermission("role.manage")] // ✅ Chỉ ADMIN sửa được role
     public async Task<IActionResult> Update(int id, UpdateRoleRequest request)
     {
@@ -60,7 +56,6 @@ public class RolesController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [AllowAnonymous] // ✅ Public
     //[RequirePermission("role.manage")] // ✅ Chỉ ADMIN xóa được role
     public async Task<IActionResult> Delete(int id)
     {

@@ -63,4 +63,16 @@ public class ApiResponse<T>
             Data = default
         };
     }
+    
+    // Authorized
+    public static ApiResponse<T> Authorized(string message =  "Bạn cần đăng nhập")
+    {
+        return new ApiResponse<T>
+        {
+            Success = false,
+            Message = message,
+            Status = (int)HttpStatusCode.Unauthorized,
+            Data = default
+        };
+    }
 }

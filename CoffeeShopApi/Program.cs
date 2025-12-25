@@ -5,8 +5,10 @@ using System.Text;
 using System.Text.Json.Serialization;
 using CoffeeShopApi.Services;
 using CoffeeShopApi.Authorization;
+using CoffeeShopApi.Shared;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Microsoft.OpenApi.Models;
@@ -14,6 +16,21 @@ using Microsoft.OpenApi.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var errors = context.ModelState
+                .Where(e => e.Value.Errors.Count > 0)
+                .SelectMany(x => x.Value.Errors)
+                .Select(x => x.ErrorMessage)
+                .ToList();
+
+            var response = ApiResponse<object>.Fail("Dữ liệu không hợp lệ", errors);
+
+            return new BadRequestObjectResult(response);
+        };
+    })
     .AddJsonOptions(x => 
         x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 
@@ -68,9 +85,12 @@ builder.Services.AddSwaggerGen(c =>
     // Định nghĩa bảo mật Bearer
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Description = "Nhập token theo định dạng: Bearer {token}",
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Nhập token vào bên dưới (không cần 'Bearer ' ở đầu)."
     });
 
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -123,6 +143,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
+// app.UseMiddleware<CoffeeShopApi.Middlewares.ErrorHandlingMiddleware>();
+// app.UseMiddleware<CoffeeShopApi.Middlewares.RequestLoggingMiddleware>();
+// app.UseMiddleware<CoffeeShopApi.Middlewares.AuthenticationInfoMiddleware>();
 app.UseAuthentication(); 
 app.UseAuthorization();
 app.MapControllers();

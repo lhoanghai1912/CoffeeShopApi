@@ -21,7 +21,7 @@ public class CategoriesController :  ControllerBase
     }
 
     [HttpGet]
-    [AllowAnonymous] // ✅ Public
+    //[AllowAnonymous] // ✅ Public
     public async Task<IActionResult> GetAll()
     {
         var result = await _service.GetAllAsync();
@@ -29,7 +29,6 @@ public class CategoriesController :  ControllerBase
     }
     
     [HttpGet("{id}")]
-    [AllowAnonymous] // ✅ Public
     public async Task<IActionResult> GetById(int id)
     {
         var role = await _service.GetByIdAsync(id);
@@ -39,7 +38,6 @@ public class CategoriesController :  ControllerBase
 
     [HttpPost]
     //[RequirePermission("category.create")] // ✅ ADMIN + STAFF
-    [AllowAnonymous] // ✅ Public
     public async Task<IActionResult> Create(CreateCategoryRequest request)
     {
         var created = await _service.CreateAsync(request);
@@ -48,7 +46,6 @@ public class CategoriesController :  ControllerBase
 
     [HttpPut("{id}")]
     //[RequirePermission("category.update")] // ✅ ADMIN + STAFF
-    [AllowAnonymous] // ✅ Public
     public async Task<IActionResult> Update(int id, UpdateCategoryRequest request)
     {
         var success = await _service.UpdateAsync(id, request);
@@ -58,7 +55,6 @@ public class CategoriesController :  ControllerBase
 
     [HttpDelete("{id}")]
     //[RequirePermission("category.delete")] // ✅ ADMIN only
-    [AllowAnonymous] // ✅ Public
     public async Task<IActionResult> Delete(int id)
     {
         var success = await _service.DeleteAsync(id);

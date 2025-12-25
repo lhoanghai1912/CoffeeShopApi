@@ -22,7 +22,6 @@ public class ProductsController : ControllerBase
     }
 
     [HttpGet("Paged")]
-    [AllowAnonymous] // ✅ Public - không cần login
     public async Task<IActionResult> GetAllPaginated(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10,
@@ -35,7 +34,6 @@ public class ProductsController : ControllerBase
     }
     
     [HttpGet]
-    [AllowAnonymous] // ✅ Public - không cần login
     public async Task<IActionResult> GetAll()
     {
         var result = await _service.GetAllAsync();
@@ -43,7 +41,6 @@ public class ProductsController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [AllowAnonymous] // ✅ Public - không cần login
     public async Task<IActionResult> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -52,7 +49,6 @@ public class ProductsController : ControllerBase
     }
     
     [HttpPost]
-    [AllowAnonymous] // ✅ Public
     //[RequirePermission("product.create")] // ✅ Chỉ ADMIN và STAFF được tạo
     public async Task<IActionResult> Create(CreateProductRequest request)
     {
@@ -94,7 +90,6 @@ public class ProductsController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [AllowAnonymous] // ✅ Public
     //[RequirePermission("product.update")] // ✅ Chỉ ADMIN và STAFF được sửa
     public async Task<IActionResult> Update(int id, UpdateProductRequest request)
     {
@@ -137,7 +132,6 @@ public class ProductsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [AllowAnonymous] // ✅ Public
     //[RequirePermission("product.delete")] // ✅ Chỉ ADMIN được xóa
     public async Task<IActionResult> Delete(int id)
     {

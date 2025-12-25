@@ -109,7 +109,7 @@ public class AuthService : IAuthService
         string passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
         // ✅ BẢO MẬT: Không cho user tự chọn role admin (roleId = 1)
-        // Mặc định tạo account customer (roleId = 2)
+        // Mặc định tạo account customer (roleId = 1)
         int roleId = 2; // CUSTOMER
         
         // Chỉ cho phép admin tạo account với role khác
