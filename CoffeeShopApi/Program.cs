@@ -150,4 +150,12 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
+// Initialize Database - Reset identity seed for Products table
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var context = services.GetRequiredService<AppDbContext>();
+    DbInitializer.Initialize(context);
+}
+
 app.Run();
