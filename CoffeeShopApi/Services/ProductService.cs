@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using CoffeeShopApi.Data;
 using CoffeeShopApi.DTOs;
 using CoffeeShopApi.Models;
+using CoffeeShopApi.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Gridify;
 
@@ -17,36 +18,31 @@ public interface IProductService
     Task<ProductResponse> CreateAsync(CreateProductRequest request);
     Task<bool> UpdateAsync(int id, UpdateProductRequest request);
     Task<bool> DeleteAsync(int id);
-    Task<PaginatedResponse<ProductResponse>> GetPagedAsync(int page, int pageSize,string? search, string? orderBy, string? filter);
+    Task<PaginatedResponse<ProductResponse>> GetPagedAsync(int page, int pageSize, string? search, string? orderBy, string? filter);
 }
 
 public class ProductService : IProductService
 {
+    private readonly IProductRepository _productRepository;
+    private readonly ICategoryRepository _categoryRepository;
     private readonly AppDbContext _context;
 
-    public ProductService(AppDbContext context)
+    public ProductService(IProductRepository productRepository, ICategoryRepository categoryRepository, AppDbContext context)
     {
+        _productRepository = productRepository;
+        _categoryRepository = categoryRepository;
         _context = context;
     }
 
     public async Task<IEnumerable<ProductResponse>> GetAllAsync()
     {
-        var products = await _context.Products
-            .Include(p => p.Category)
-            .Include(p => p.ProductDetails)
-            .ToListAsync();
-
+        var products = await _productRepository.GetAllWithDetailsAsync();
         return products.Select(MapToResponse);
     }
 
     public async Task<ProductResponse?> GetByIdAsync(int id)
     {
-        var product = await _context.Products
-            .Include(p => p.Category)
-            
-            .Include(p => p.ProductDetails)
-            .FirstOrDefaultAsync(p => p.Id == id);
-
+        var product = await _productRepository.GetByIdWithDetailsAsync(id);
         return product == null ? null : MapToResponse(product);
     }
 
@@ -54,7 +50,6 @@ public class ProductService : IProductService
     {           
         // determine category id: support either CategoryId or nested Category { id }
         int? categoryId = request.CategoryId;
-        // if request has nested Category object, try reading it via reflection-safe property
         var categoryProp = request.GetType().GetProperty("Category");
         if (categoryId == null && categoryProp != null)
         {
@@ -70,24 +65,43 @@ public class ProductService : IProductService
             }
         }
 
-        var details = request.ProductDetails ?? new List<ProductDetailDto>();
-
         var product = new Product
         {
             Name = request.Name,
             Description = request.Description,
             ImageUrl = request.ImageUrl,
-            ProductDetails = details.Select(d => new ProductDetail
-            {
-                Size = d.Size,
-                Price = d.Price,
-            }).ToList()
+            BasePrice = request.BasePrice
         };
+
+
+
+        // Add OptionGroups if provided
+        if (request.OptionGroups != null && request.OptionGroups.Any())
+        {
+            foreach (var ogRequest in request.OptionGroups)
+            {
+                var optionGroup = new OptionGroup
+                {
+                    Name = ogRequest.Name,
+                    IsRequired = ogRequest.IsRequired,
+                    AllowMultiple = ogRequest.AllowMultiple,
+                    DisplayOrder = ogRequest.DisplayOrder,
+                    OptionItems = ogRequest.OptionItems.Select(oi => new OptionItem
+                    {
+                        Name = oi.Name,
+                        PriceAdjustment = oi.PriceAdjustment,
+                        IsDefault = oi.IsDefault,
+                        DisplayOrder = oi.DisplayOrder
+                    }).ToList()
+                };
+                product.OptionGroups.Add(optionGroup);
+            }
+        }
 
         // If frontend provided CategoryId, validate it and set
         if (categoryId != null)
         {
-            var category = await _context.Categories.FindAsync(categoryId.Value);
+            var category = await _categoryRepository.GetByIdAsync(categoryId.Value);
             if (category == null)
                 throw new ArgumentException("Category not found");
 
@@ -95,31 +109,28 @@ public class ProductService : IProductService
             product.Category = category;
         }
 
-        _context.Products.Add(product);
-        await _context.SaveChangesAsync();
+        await _productRepository.CreateWithOptionsAsync(product);
 
         // Reload product with related data for response
-        var created = await _context.Products
-            .Include(p => p.Category)
-            .Include(p => p.ProductDetails)
-            .FirstOrDefaultAsync(p => p.Id == product.Id);
+        var created = await _productRepository.GetByIdWithDetailsAsync(product.Id);
 
         if (created == null) throw new InvalidOperationException("Created product not found");
 
         return MapToResponse(created);
     }
 
+
     public async Task<bool> UpdateAsync(int id, UpdateProductRequest request)
     {
-        var product = await _context.Products
-            .Include(p => p.ProductDetails)
-            .FirstOrDefaultAsync(p => p.Id == id);
+        var product = await _productRepository.GetByIdWithDetailsAsync(id);
 
         if (product == null) return false;
 
         product.Name = request.Name;
         product.Description = request.Description;
         product.ImageUrl = request.ImageUrl;
+        product.BasePrice = request.BasePrice;
+        
         // determine category id (support nested Category object or CategoryId)
         int? updCategoryId = request.CategoryId;
         var categoryProp2 = request.GetType().GetProperty("Category");
@@ -139,79 +150,48 @@ public class ProductService : IProductService
 
         if (updCategoryId != null)
         {
-            var category = await _context.Categories.FindAsync(updCategoryId.Value);
+            var category = await _categoryRepository.GetByIdAsync(updCategoryId.Value);
             if (category == null)
                 throw new ArgumentException("Category not found");
             product.CategoryId = category.Id;
             product.Category = category;
         }
 
-        // update details only when provided (if null -> keep existing; if empty list -> clear)
-        if (request.ProductDetails != null)
+        // Build new OptionGroups if provided
+        ICollection<OptionGroup>? newOptionGroups = null;
+        if (request.OptionGroups != null)
         {
-            _context.ProductDetails.RemoveRange(product.ProductDetails);
-
-            foreach (var item in request.ProductDetails)
+            newOptionGroups = request.OptionGroups.Select(ogRequest => new OptionGroup
             {
-                product.ProductDetails.Add(new ProductDetail
+                ProductId = product.Id,
+                Name = ogRequest.Name,
+                IsRequired = ogRequest.IsRequired,
+                AllowMultiple = ogRequest.AllowMultiple,
+                DisplayOrder = ogRequest.DisplayOrder,
+                OptionItems = ogRequest.OptionItems.Select(oi => new OptionItem
                 {
-                    Size = item.Size,
-                    Price = item.Price,
-                });
-            }
+                    Name = oi.Name,
+                    PriceAdjustment = oi.PriceAdjustment,
+                    IsDefault = oi.IsDefault,
+                    DisplayOrder = oi.DisplayOrder
+                }).ToList()
+            }).ToList();
         }
 
-        await _context.SaveChangesAsync();
-        return true;
+        return await _productRepository.UpdateWithOptionsAsync(product, newOptionGroups);
     }
 
     public async Task<bool> DeleteAsync(int id)
     {
-        var product = await _context.Products.FindAsync(id);
-        if (product == null) return false;
-        _context.Products.Remove(product);
-        await _context.SaveChangesAsync();
-        return true;
+        return await _productRepository.DeleteWithOptionsAsync(id);
     }
+
+
 
     public async Task<PaginatedResponse<ProductResponse>> GetPagedAsync(int page, int pageSize, string? search, string? orderBy, string? filter)
     {
-        page = Math.Max(1, page);
-        pageSize = Math.Max(1, Math.Min(100, pageSize));
-
-        var query = _context.Products.AsQueryable();
-
-        // Build Gridify query
-        var gridifyQuery = new GridifyQuery
-        {
-            Page = page,
-            PageSize = pageSize,
-            Filter = filter,
-            OrderBy = orderBy   
-        };
-
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var searchValue = search.Trim().ToLower();
-            query = query.Where(p => (p.Name != null && p.Name.ToLower().Contains(searchValue))
-                                   || (p.Description != null && p.Description.ToLower().Contains(searchValue)));
-        }
-
-        query = query.ApplyFiltering(gridifyQuery).ApplyOrdering(gridifyQuery);
-
-
-        query = query.ApplyPaging(gridifyQuery);
-        var totalCount = await query.CountAsync();
-
-        // Now apply includes and materialize
-        var items = await query
-            .Include(p => p.Category)
-            .Include(p => p.ProductDetails)
-            .AsNoTracking()
-            .ToListAsync();
-
+        var (items, totalCount) = await _productRepository.GetPagedAsync(page, pageSize, search, filter, orderBy);
         var mapped = items.Select(MapToResponse).ToList();
-
         return new PaginatedResponse<ProductResponse>(mapped, totalCount, page, pageSize);
     }
 
@@ -223,17 +203,32 @@ public class ProductService : IProductService
             Name = product.Name,
             Description = product.Description,
             ImageUrl = product.ImageUrl,
+            BasePrice = product.BasePrice,
             Category = product.Category == null ? null : new CategoryResponse
             {
                 Id = product.Category.Id,
                 Name = product.Category.Name
             },
-            ProductDetails = product.ProductDetails.Select(d => new ProductDetailResponse
-            {
-                Id = d.Id,
-                Size = d.Size,
-                Price = d.Price
-            }).ToList()
+            OptionGroups = product.OptionGroups
+                .OrderBy(og => og.DisplayOrder)
+                .Select(og => new OptionGroupDto
+                {
+                    Id = og.Id,
+                    Name = og.Name,
+                    IsRequired = og.IsRequired,
+                    AllowMultiple = og.AllowMultiple,
+                    DisplayOrder = og.DisplayOrder,
+                    OptionItems = og.OptionItems
+                        .OrderBy(oi => oi.DisplayOrder)
+                        .Select(oi => new OptionItemDto
+                        {
+                            Id = oi.Id,
+                            Name = oi.Name,
+                            PriceAdjustment = oi.PriceAdjustment,
+                            IsDefault = oi.IsDefault,
+                            DisplayOrder = oi.DisplayOrder
+                        }).ToList()
+                }).ToList()
         };
     }
 }

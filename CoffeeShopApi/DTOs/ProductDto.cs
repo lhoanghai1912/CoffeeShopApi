@@ -3,31 +3,26 @@ using System.ComponentModel;
 
 namespace CoffeeShopApi.DTOs;
 
-// Class con để hứng dữ liệu size + giá
-public class ProductDetailDto
-{
-    public string Size { get; set; } = string.Empty;
-    public decimal Price { get; set; }
-}
-
 public class CreateProductRequest
 {
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; } = string.Empty;
     public string? ImageUrl { get; set; } = string.Empty;
+    public decimal BasePrice { get; set; } // Gia goc
 
-    // FE gửi category id as { "id": 3 } or just categoryId; service expects CategoryId
+    // FE gui category id as { "id": 3 } or just categoryId
     public int? CategoryId { get; set; }
-    // Or FE gửi nested category object { "category": { "id": 3, "name": "..." } }
+    // Or FE gui nested category object { "category": { "id": 3, "name": "..." } }
     public CategoryDto? Category { get; set; }
 
-    // Nullable so we can distinguish between omitted (null) and explicit empty list ([])
-    public List<ProductDetailDto>? ProductDetails { get; set; }
+    // He thong OptionGroups
+    public List<CreateOptionGroupRequest>? OptionGroups { get; set; }
+
+    // KHONG co IFormFile, KHONG co [FromForm]
 }
 
 public class CategoryDto
 {
-    // Nullable so binder accepts null and controller can return custom ApiResponse
     public int? Id { get; set; }
 }
 
@@ -41,14 +36,11 @@ public class ProductResponse
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; } = string.Empty;
     public string? ImageUrl { get; set; } = string.Empty;
+    public decimal BasePrice { get; set; } // Gia goc
     public CategoryResponse? Category { get; set; } = new();
-    public List<ProductDetailResponse> ProductDetails { get; set; } = new();
+    
+    // He thong OptionGroups (thay the ProductDetails)
+    public List<OptionGroupDto> OptionGroups { get; set; } = new();
 }
 
-public class ProductDetailResponse
-{
-    public int Id { get; set; }
-    public string Size { get; set; } = string.Empty;
-    public decimal Price { get; set; }
-}
 

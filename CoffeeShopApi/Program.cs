@@ -4,6 +4,7 @@ using Scalar.AspNetCore;
 using System.Text;
 using System.Text.Json.Serialization;
 using CoffeeShopApi.Services;
+using CoffeeShopApi.Repositories;
 using CoffeeShopApi.Authorization;
 using CoffeeShopApi.Shared;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -18,6 +19,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers()
     .ConfigureApiBehaviorOptions(options =>
     {
+
         options.InvalidModelStateResponseFactory = context =>
         {
             var errors = context.ModelState
@@ -109,6 +111,10 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// Đăng ký Repositories (Dependency Injection)
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+
 // Đăng ký Services (Dependency Injection)
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IProductService, ProductService>();
@@ -128,6 +134,7 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger(options =>
+
     {
 
     });
@@ -143,19 +150,20 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
-// app.UseMiddleware<CoffeeShopApi.Middlewares.ErrorHandlingMiddleware>();
+app.UseMiddleware<CoffeeShopApi.Middlewares.ErrorHandlingMiddleware>();
 // app.UseMiddleware<CoffeeShopApi.Middlewares.RequestLoggingMiddleware>();
 // app.UseMiddleware<CoffeeShopApi.Middlewares.AuthenticationInfoMiddleware>();
 app.UseAuthentication(); 
 app.UseAuthorization();
 app.MapControllers();
+app.UseStaticFiles();
 
-// Initialize Database - Reset identity seed for Products table
+// Initialize Database - Seed products with OptionGroups
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     var context = services.GetRequiredService<AppDbContext>();
-    DbInitializer.Initialize(context);
+    await DbInitializer.InitializeAsync(context);
 }
 
 app.Run();

@@ -49,12 +49,42 @@ public class ProductsController : ControllerBase
     }
     
     [HttpPost]
-    //[RequirePermission("product.create")] // ✅ Chỉ ADMIN và STAFF được tạo
-    public async Task<IActionResult> Create(CreateProductRequest request)
+    public async Task<IActionResult> Create([FromForm] ProductFormDataRequest form)
     {
+        // Kiểm tra dữ liệu nhận được
+        if (string.IsNullOrWhiteSpace(form.FormField))
+            return BadRequest("FormField is empty!");
+
+        // Parse JSON
+        CreateProductRequest? request;
+        try
+        {
+            request = System.Text.Json.JsonSerializer.Deserialize<CreateProductRequest>(form.FormField);
+        }
+        catch (Exception ex)
+        {
+            // Log lỗi ex.Message nếu cần
+            return BadRequest("JSON parse error: " + ex.Message);
+        }
+        if (request == null)
+            return BadRequest("Cannot parse FormField to CreateProductRequest!");
+
+        // Handle image upload
+        if (form.Image != null && form.Image.Length > 0)
+        {
+            var ext = Path.GetExtension(form.Image.FileName);
+            var fileName = $"product_{Guid.NewGuid()}{ext}";
+            var savePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", fileName);
+            Directory.CreateDirectory(Path.GetDirectoryName(savePath)!);
+            using (var stream = new FileStream(savePath, FileMode.Create))
+            {
+                await form.Image.CopyToAsync(stream);
+            }
+            request.ImageUrl = $"/images/{fileName}";
+        }
+
         // validate request fields and collect errors
         var errors = new List<string>();
-
         if (request.Category != null)
         {
             if (request.Category.Id == null)
@@ -62,21 +92,26 @@ public class ProductsController : ControllerBase
             else if (request.Category.Id <= 0)
                 errors.Add("categoryId must be a positive integer");
         }
-
-        if (request.ProductDetails != null)
+        if (request.OptionGroups != null)
         {
-            for (int i = 0; i < request.ProductDetails.Count; i++)
+            for (int i = 0; i < request.OptionGroups.Count; i++)
             {
-                var d = request.ProductDetails[i];
-                if (string.IsNullOrWhiteSpace(d.Size))
-                    errors.Add($"productDetails[{i}].size is required");
-                if (d.Price <= 0)
-                    errors.Add($"productDetails[{i}].price must be greater than 0");
+                var og = request.OptionGroups[i];
+                if (string.IsNullOrWhiteSpace(og.Name))
+                    errors.Add($"optionGroups[{i}].name is required");
+                if (og.OptionItems != null)
+                {
+                    for (int j = 0; j < og.OptionItems.Count; j++)
+                    {
+                        var oi = og.OptionItems[j];
+                        if (string.IsNullOrWhiteSpace(oi.Name))
+                            errors.Add($"optionGroups[{i}].optionItems[{j}].name is required");
+                    }
+                }
             }
         }
-
         if (errors.Count > 0)
-            return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ", errors));
+            return BadRequest(ApiResponse<object>.Fail("Du lieu khong hop le", errors));
 
         try
         {
@@ -90,40 +125,71 @@ public class ProductsController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    //[RequirePermission("product.update")] // ✅ Chỉ ADMIN và STAFF được sửa
-    public async Task<IActionResult> Update(int id, UpdateProductRequest request)
+    //[RequirePermission("product.update")]
+    [RequestSizeLimit(10_000_000)]
+    public async Task<IActionResult> Update(int id, [FromForm] ProductFormDataRequest form)
     {
+        // Parse formField to UpdateProductRequest
+        var options = new System.Text.Json.JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        };
+        var request = System.Text.Json.JsonSerializer.Deserialize<UpdateProductRequest>(form.FormField, options);
+        if (request == null)
+            return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ"));
+
+        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(request));
+
+
+        // Handle image upload
+        if (form.Image != null && form.Image.Length > 0)
+        {
+            var ext = Path.GetExtension(form.Image.FileName);
+            var fileName = $"product_{Guid.NewGuid()}{ext}";
+            var savePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", fileName);
+            Directory.CreateDirectory(Path.GetDirectoryName(savePath)!);
+            using (var stream = new FileStream(savePath, FileMode.Create))
+            {
+                await form.Image.CopyToAsync(stream);
+            }
+            request.ImageUrl = $"/images/{fileName}";
+        }
+
         // validate request fields and collect errors
         var errors = new List<string>();
-
-        if (request.Category != null )
+        if (request.Category != null)
         {
             if (request.Category.Id == null)
-                errors.Add("categoryId ");
+                errors.Add("categoryId is required");
             else if (request.Category.Id <= 0)
                 errors.Add("categoryId must be a positive integer");
         }
-
-        if (request.ProductDetails != null)
+        if (request.OptionGroups != null)
         {
-            for (int i = 0; i < request.ProductDetails.Count; i++)
+            for (int i = 0; i < request.OptionGroups.Count; i++)
             {
-                var d = request.ProductDetails[i];
-                if (string.IsNullOrWhiteSpace(d.Size))
-                    errors.Add($"productDetails[{i}].size is required");
-                if (d.Price <= 0)
-                    errors.Add($"productDetails[{i}].price must be greater than 0");
+                var og = request.OptionGroups[i];
+                if (string.IsNullOrWhiteSpace(og.Name))
+                    errors.Add($"optionGroups[{i}].name is required");
+                if (og.OptionItems != null)
+                {
+                    for (int j = 0; j < og.OptionItems.Count; j++)
+                    {
+                        var oi = og.OptionItems[j];
+                        if (string.IsNullOrWhiteSpace(oi.Name))
+                            errors.Add($"optionGroups[{i}].optionItems[{j}].name is required");
+                    }
+                }
             }
         }
-
         if (errors.Count > 0)
-            return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ", errors));
+            return BadRequest(ApiResponse<object>.Fail("Du lieu khong hop le", errors));
 
         try
         {
             var success = await _service.UpdateAsync(id, request);
             if (!success) return NotFound(ApiResponse<object>.NotFound());
-            return Ok(ApiResponse<object>.Ok(success, "Cập nhật product thành công"));
+            return Ok(ApiResponse<object>.Ok(success, "Cap nhat product thanh cong"));
         }
         catch (ArgumentException ex)
         {
@@ -132,11 +198,11 @@ public class ProductsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    //[RequirePermission("product.delete")] // ✅ Chỉ ADMIN được xóa
+    //[RequirePermission("product.delete")] // Chi ADMIN duoc xoa
     public async Task<IActionResult> Delete(int id)
     {
         var success = await _service.DeleteAsync(id);
         if (!success) return NotFound(ApiResponse<object>.NotFound());
-        return Ok(ApiResponse<object>.Ok(success, "Xóa product thành công"));
+        return Ok(ApiResponse<object>.Ok(success, "Xoa product thanh cong"));
     }
 }

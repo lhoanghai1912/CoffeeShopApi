@@ -10,23 +10,27 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
     {
         builder.HasKey(p => p.Id);
 
+        builder.Property(p => p.Name)
+            .IsRequired()
+            .HasMaxLength(100);
 
-        builder.Property(p => p.Name);
-
+        builder.Property(p => p.BasePrice)
+            .HasColumnType("decimal(18,0)")
+            .IsRequired()
+            .HasDefaultValue(0);
 
         builder.Property(p => p.Description);
 
         builder.Property(p => p.ImageUrl);
         
-        builder.HasMany(p => p.ProductDetails)
-            .WithOne(d => d.Product)
-            .HasForeignKey(d => d.ProductId)
-            .OnDelete(DeleteBehavior.Cascade);
-        
         builder.HasOne(p => p.Category)
             .WithMany(c => c.Products)
             .HasForeignKey(d => d.CategoryId)
             .OnDelete(DeleteBehavior.Cascade);
+        
+        builder.HasMany(p => p.OptionGroups)
+            .WithOne(og => og.Product)
+            .HasForeignKey(og => og.ProductId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
-    
 }

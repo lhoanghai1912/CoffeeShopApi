@@ -5,20 +5,21 @@ namespace CoffeeShopApi.Data;
 
 public static class DbInitializer
 {
-    public static void Initialize(AppDbContext context)
+    public static async Task InitializeAsync(AppDbContext context)
     {
-        // Reset identity seed for ALL tables to ensure they continue from the last used ID
+        // Reset identity seed for ALL tables
         try 
         {
-            // List of all tables with identity columns
+            // List of all tables with identity columns (khong co ProductDetails nua)
             var tables = new[]
             {
                 "Users",
                 "Roles",
                 "Permissions",
                 "Products",
-                "ProductDetails",
-                "Categories"
+                "Categories",
+                "OptionGroups",
+                "OptionItems"
             };
 
             foreach (var table in tables)
@@ -39,13 +40,16 @@ public static class DbInitializer
                 }
                 catch
                 {
-                    // Ignore errors for individual tables (e.g., if table doesn't exist or no Id column)
+                    // Ignore errors for individual tables
                 }
             }
+
+            // Seed 30 products with option system
+            await ProductSeeder.SeedProductsWithOptions(context);
         }
         catch
         {
-            // Ignore errors (e.g. if not using SQL Server or lack of permissions)
+            // Ignore errors
         }
     }
 }
