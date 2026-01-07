@@ -24,4 +24,7 @@ public class OptionGroup
     public int DisplayOrder { get; set; } = 0;
 
     public ICollection<OptionItem> OptionItems { get; set; } = new List<OptionItem>();
+
+    // FatherId: song song v?i ProductId
+    public int FatherId { get; set; }
 }

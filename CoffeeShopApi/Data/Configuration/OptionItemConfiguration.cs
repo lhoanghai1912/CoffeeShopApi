@@ -24,5 +24,8 @@ public class OptionItemConfiguration : IEntityTypeConfiguration<OptionItem>
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasIndex(oi => oi.OptionGroupId);
+
+        builder.Property(oi => oi.FatherId)
+            .IsRequired();
     }
 }

@@ -23,4 +23,7 @@ public class OptionItem
     public bool IsDefault { get; set; } = false;
 
     public int DisplayOrder { get; set; } = 0;
+
+    // FatherId: song song v?i OptionGroupId
+    public int FatherId { get; set; }
 }

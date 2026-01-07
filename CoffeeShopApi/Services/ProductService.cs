@@ -86,12 +86,14 @@ public class ProductService : IProductService
                     IsRequired = ogRequest.IsRequired,
                     AllowMultiple = ogRequest.AllowMultiple,
                     DisplayOrder = ogRequest.DisplayOrder,
+                    // fatherId is not mapped to entity, but you can add logic here if needed
                     OptionItems = ogRequest.OptionItems.Select(oi => new OptionItem
                     {
                         Name = oi.Name,
                         PriceAdjustment = oi.PriceAdjustment,
                         IsDefault = oi.IsDefault,
-                        DisplayOrder = oi.DisplayOrder
+                        DisplayOrder = oi.DisplayOrder,
+                        // fatherId is not mapped to entity, but you can add logic here if needed
                     }).ToList()
                 };
                 product.OptionGroups.Add(optionGroup);
@@ -168,12 +170,14 @@ public class ProductService : IProductService
                 IsRequired = ogRequest.IsRequired,
                 AllowMultiple = ogRequest.AllowMultiple,
                 DisplayOrder = ogRequest.DisplayOrder,
+                // fatherId is not mapped to entity, but you can add logic here if needed
                 OptionItems = ogRequest.OptionItems.Select(oi => new OptionItem
                 {
                     Name = oi.Name,
                     PriceAdjustment = oi.PriceAdjustment,
                     IsDefault = oi.IsDefault,
-                    DisplayOrder = oi.DisplayOrder
+                    DisplayOrder = oi.DisplayOrder,
+                    // fatherId is not mapped to entity, but you can add logic here if needed
                 }).ToList()
             }).ToList();
         }
@@ -218,6 +222,7 @@ public class ProductService : IProductService
                     IsRequired = og.IsRequired,
                     AllowMultiple = og.AllowMultiple,
                     DisplayOrder = og.DisplayOrder,
+                    FatherId = og.ProductId, // Set fatherId as ProductId
                     OptionItems = og.OptionItems
                         .OrderBy(oi => oi.DisplayOrder)
                         .Select(oi => new OptionItemDto
@@ -226,7 +231,8 @@ public class ProductService : IProductService
                             Name = oi.Name,
                             PriceAdjustment = oi.PriceAdjustment,
                             IsDefault = oi.IsDefault,
-                            DisplayOrder = oi.DisplayOrder
+                            DisplayOrder = oi.DisplayOrder,
+                            FatherId = oi.OptionGroupId // Set fatherId as OptionGroupId
                         }).ToList()
                 }).ToList()
         };

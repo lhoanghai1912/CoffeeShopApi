@@ -9,7 +9,7 @@ namespace CoffeeShopApi.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-[Authorize] // ✅ Bắt buộc login
+// [Authorize] // ✅ Bắt buộc login
 
 public class CategoriesController :  ControllerBase
 {
