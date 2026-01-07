@@ -1,25 +1,30 @@
 ﻿using CoffeeShopApi.DTOs;
 using CoffeeShopApi.Services;
 using CoffeeShopApi.Shared;
-using CoffeeShopApi.Attributes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CoffeeShopApi.Controllers;
 
-
 [Route("api/[controller]")]
 [ApiController]
-[Authorize] // ✅ Bắt buộc phải login
-
+// [Authorize]
 public class ProductsController : ControllerBase
 {
     private readonly IProductService _service;
+    private readonly IFileUploadService _fileUploadService;
+    private readonly IProductRequestService _requestService;
 
-    public ProductsController(IProductService service)
+    public ProductsController(
+        IProductService service, 
+        IFileUploadService fileUploadService,
+        IProductRequestService requestService)
     {
         _service = service;
+        _fileUploadService = fileUploadService;
+        _requestService = requestService;
     }
+
 
     [HttpGet("Paged")]
     public async Task<IActionResult> GetAllPaginated(
@@ -51,70 +56,19 @@ public class ProductsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromForm] ProductFormDataRequest form)
     {
-        // Kiểm tra dữ liệu nhận được
-        if (string.IsNullOrWhiteSpace(form.FormField))
-            return BadRequest("FormField is empty!");
-
-        // Parse JSON
-        CreateProductRequest? request;
         try
         {
-            request = System.Text.Json.JsonSerializer.Deserialize<CreateProductRequest>(form.FormField);
-        }
-        catch (Exception ex)
-        {
-            // Log lỗi ex.Message nếu cần
-            return BadRequest("JSON parse error: " + ex.Message);
-        }
-        if (request == null)
-            return BadRequest("Cannot parse FormField to CreateProductRequest!");
+            var request = _requestService.ParseFormData<CreateProductRequest>(form.FormField);
+            
+            var validationErrors = _requestService.ValidateProductRequest(request);
+            if (validationErrors.Any())
+                return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ", validationErrors));
 
-        // Handle image upload
-        if (form.Image != null && form.Image.Length > 0)
-        {
-            var ext = Path.GetExtension(form.Image.FileName);
-            var fileName = $"product_{Guid.NewGuid()}{ext}";
-            var savePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", fileName);
-            Directory.CreateDirectory(Path.GetDirectoryName(savePath)!);
-            using (var stream = new FileStream(savePath, FileMode.Create))
+            if (form.Image != null && form.Image.Length > 0)
             {
-                await form.Image.CopyToAsync(stream);
+                request.ImageUrl = await _fileUploadService.UploadImageAsync(form.Image);
             }
-            request.ImageUrl = $"/images/{fileName}";
-        }
 
-        // validate request fields and collect errors
-        var errors = new List<string>();
-        if (request.Category != null)
-        {
-            if (request.Category.Id == null)
-                errors.Add("categoryId is required");
-            else if (request.Category.Id <= 0)
-                errors.Add("categoryId must be a positive integer");
-        }
-        if (request.OptionGroups != null)
-        {
-            for (int i = 0; i < request.OptionGroups.Count; i++)
-            {
-                var og = request.OptionGroups[i];
-                if (string.IsNullOrWhiteSpace(og.Name))
-                    errors.Add($"optionGroups[{i}].name is required");
-                if (og.OptionItems != null)
-                {
-                    for (int j = 0; j < og.OptionItems.Count; j++)
-                    {
-                        var oi = og.OptionItems[j];
-                        if (string.IsNullOrWhiteSpace(oi.Name))
-                            errors.Add($"optionGroups[{i}].optionItems[{j}].name is required");
-                    }
-                }
-            }
-        }
-        if (errors.Count > 0)
-            return BadRequest(ApiResponse<object>.Fail("Du lieu khong hop le", errors));
-
-        try
-        {
             var created = await _service.CreateAsync(request);
             return Ok(ApiResponse<object>.Ok(created));
         }
@@ -124,71 +78,27 @@ public class ProductsController : ControllerBase
         }
     }
 
+
     [HttpPut("{id}")]
-    //[RequirePermission("product.update")]
     [RequestSizeLimit(10_000_000)]
     public async Task<IActionResult> Update(int id, [FromForm] ProductFormDataRequest form)
     {
-        // Parse formField to UpdateProductRequest
-        var options = new System.Text.Json.JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true
-        };
-        var request = System.Text.Json.JsonSerializer.Deserialize<UpdateProductRequest>(form.FormField, options);
-        if (request == null)
-            return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ"));
-
-        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(request));
-
-
-        // Handle image upload
-        if (form.Image != null && form.Image.Length > 0)
-        {
-            var ext = Path.GetExtension(form.Image.FileName);
-            var fileName = $"product_{Guid.NewGuid()}{ext}";
-            var savePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", fileName);
-            Directory.CreateDirectory(Path.GetDirectoryName(savePath)!);
-            using (var stream = new FileStream(savePath, FileMode.Create))
-            {
-                await form.Image.CopyToAsync(stream);
-            }
-            request.ImageUrl = $"/images/{fileName}";
-        }
-
-        // validate request fields and collect errors
-        var errors = new List<string>();
-        if (request.Category != null)
-        {
-            if (request.Category.Id == null)
-                errors.Add("categoryId is required");
-            else if (request.Category.Id <= 0)
-                errors.Add("categoryId must be a positive integer");
-        }
-        if (request.OptionGroups != null)
-        {
-            for (int i = 0; i < request.OptionGroups.Count; i++)
-            {
-                var og = request.OptionGroups[i];
-                if (string.IsNullOrWhiteSpace(og.Name))
-                    errors.Add($"optionGroups[{i}].name is required");
-                if (og.OptionItems != null)
-                {
-                    for (int j = 0; j < og.OptionItems.Count; j++)
-                    {
-                        var oi = og.OptionItems[j];
-                        if (string.IsNullOrWhiteSpace(oi.Name))
-                            errors.Add($"optionGroups[{i}].optionItems[{j}].name is required");
-                    }
-                }
-            }
-        }
-        if (errors.Count > 0)
-            return BadRequest(ApiResponse<object>.Fail("Du lieu khong hop le", errors));
-
         try
         {
+            var request = _requestService.ParseFormData<UpdateProductRequest>(form.FormField);
+            
+            var validationErrors = _requestService.ValidateProductRequest(request);
+            if (validationErrors.Any())
+                return BadRequest(ApiResponse<object>.Fail("Du lieu khong hop le", validationErrors));
+
+            if (form.Image != null && form.Image.Length > 0)
+            {
+                request.ImageUrl = await _fileUploadService.UploadImageAsync(form.Image);
+            }
+
             var success = await _service.UpdateAsync(id, request);
             if (!success) return NotFound(ApiResponse<object>.NotFound());
+            
             return Ok(ApiResponse<object>.Ok(success, "Cap nhat product thanh cong"));
         }
         catch (ArgumentException ex)
@@ -197,8 +107,8 @@ public class ProductsController : ControllerBase
         }
     }
 
+
     [HttpDelete("{id}")]
-    //[RequirePermission("product.delete")] // Chi ADMIN duoc xoa
     public async Task<IActionResult> Delete(int id)
     {
         var success = await _service.DeleteAsync(id);

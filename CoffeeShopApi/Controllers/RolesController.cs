@@ -11,7 +11,7 @@ namespace CoffeeShopApi.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-[Authorize] // ✅ Bắt buộc phải login
+//[Authorize] // ✅ Bắt buộc phải login
 public class RolesController : ControllerBase
 {
     private readonly IRoleService _service;
