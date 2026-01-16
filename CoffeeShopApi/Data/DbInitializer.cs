@@ -19,7 +19,10 @@ public static class DbInitializer
                 "Products",
                 "Categories",
                 "OptionGroups",
-                "OptionItems"
+                "OptionItems",
+                "Orders",
+                "OrderItems",
+                "OrderItemOptions"
             };
 
             foreach (var table in tables)
@@ -46,6 +49,16 @@ public static class DbInitializer
 
             // Seed 30 products with option system
             await ProductSeeder.SeedProductsWithOptions(context);
+
+            // Seed sample orders for testing
+            try
+            {
+                await OrderSeeder.SeedSampleOrders(context);
+            }
+            catch
+            {
+                // ignore
+            }
         }
         catch
         {

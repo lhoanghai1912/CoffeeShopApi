@@ -114,6 +114,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // Đăng ký Repositories (Dependency Injection)
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 
 // Đăng ký Services (Dependency Injection)
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -122,6 +123,8 @@ builder.Services.AddScoped<IRoleService, RoleService>();
 builder.Services.AddScoped<ICategoryservice, CategoriesService>();
 builder.Services.AddScoped<IFileUploadService, FileUploadService>();
 builder.Services.AddScoped<IProductRequestService, ProductRequestService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IUserService, UserService>();
 
 
 // CORS
@@ -166,6 +169,16 @@ using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     var context = services.GetRequiredService<AppDbContext>();
+    // Apply any pending migrations and initialize DB data
+    try
+    {
+        context.Database.Migrate();
+    }
+    catch
+    {
+        // Ignore migration errors in development here
+    }
+
     await DbInitializer.InitializeAsync(context);
 }
 

@@ -20,6 +20,11 @@ public class AppDbContext : DbContext
     // Option System (thay the ProductDetail)
     public DbSet<OptionGroup> OptionGroups { get; set; }
     public DbSet<OptionItem> OptionItems { get; set; }
+    
+    // Order System
+    public DbSet<Order> Orders { get; set; }
+    public DbSet<OrderItem> OrderItems { get; set; }
+    public DbSet<OrderItemOption> OrderItemOptions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -34,6 +39,11 @@ public class AppDbContext : DbContext
         modelBuilder.ApplyConfiguration(new RolePermissionConfiguration());
         modelBuilder.ApplyConfiguration(new OptionGroupConfiguration());
         modelBuilder.ApplyConfiguration(new OptionItemConfiguration());
+        
+        // Order configurations
+        modelBuilder.ApplyConfiguration(new OrderConfiguration());
+        modelBuilder.ApplyConfiguration(new OrderItemConfiguration());
+        modelBuilder.ApplyConfiguration(new OrderItemOptionConfiguration());
 
         // 1. Seed Roles
         modelBuilder.Entity<Role>().HasData(
