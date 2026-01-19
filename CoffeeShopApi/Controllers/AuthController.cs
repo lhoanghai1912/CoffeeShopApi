@@ -27,7 +27,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         var result = await _authService.LoginAsync(request);
-        if (result == null) return Unauthorized(ApiResponse<object>.Fail("Sai tài khoản hoặc mật khẩu, hoặc email chưa được xác thực"));
+        if (result == null) return Unauthorized(ApiResponse<object>.Fail("Sai tài khoản hoặc mật khẩu"));
         return Ok(ApiResponse<object>.Ok(result));
     }
 

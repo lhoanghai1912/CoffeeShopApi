@@ -133,14 +133,12 @@ public class AuthService : IAuthService
             Id = user.Id,
             Username = user.Username,
             FullName = user.FullName,
-            Role = roleResponse,
+            Email = user.Email,
             PhoneNumber = user.PhoneNumber,
             Token = token 
         };
     }
-
     
-
     #endregion
 
     #region JwtToken
