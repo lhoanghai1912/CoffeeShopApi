@@ -1,5 +1,7 @@
+.vs/
+.idea/
+*.slnx
+*.user
+*.suo
 bin/
 obj/
-/packages/
-riderModule.iml
-/_ReSharper.Caches/

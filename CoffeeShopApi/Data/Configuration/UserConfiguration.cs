@@ -52,6 +52,33 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         // LastLoginAt - nullable
         builder.Property(u => u.LastLoginAt);
 
+        // Password Reset Fields
+        builder.Property(u => u.PasswordResetToken)
+            .HasMaxLength(256);
+
+        builder.Property(u => u.PasswordResetTokenExpiry);
+
+        builder.Property(u => u.PasswordResetRequestCount)
+            .HasDefaultValue(0);
+
+        builder.Property(u => u.LastPasswordResetRequest);
+
+        // Email Verification Fields
+        builder.Property(u => u.IsEmailVerified)
+            .HasDefaultValue(false);
+
+        builder.Property(u => u.EmailVerifiedAt);
+
+        builder.Property(u => u.EmailVerificationCode)
+            .HasMaxLength(256);
+
+        builder.Property(u => u.EmailVerificationCodeExpiry);
+
+        builder.Property(u => u.EmailVerificationRequestCount)
+            .HasDefaultValue(0);
+
+        builder.Property(u => u.LastEmailVerificationRequest);
+
         // Role relationship
         builder.HasOne(u => u.Role)
             .WithMany(r => r.Users)

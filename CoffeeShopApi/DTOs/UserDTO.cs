@@ -66,7 +66,7 @@ public class UpdateProfileRequest
     public string? FullName { get; set; }
 
     [MaxLength(20, ErrorMessage = "Số điện thoại không được quá 20 ký tự")]
-    [Phone(ErrorMessage = "Số điện thoại không hợp lệ")]
+    // [Phone(ErrorMessage = "Số điện thoại không hợp lệ")]
     public string? PhoneNumber { get; set; }
 
     [MaxLength(200, ErrorMessage = "Email không được quá 200 ký tự")]
@@ -94,10 +94,10 @@ public class ChangePasswordRequest
 /// <summary>
 /// Request DTO để deactivate user (soft delete)
 /// </summary>
-public class DeactivateUserRequest
-{
-    [MaxLength(500, ErrorMessage = "Lý do không được quá 500 ký tự")]
-    public string? Reason { get; set; }
-}
+// public class DeactivateUserRequest
+// {
+//     [MaxLength(500, ErrorMessage = "Lý do không được quá 500 ký tự")]
+//     public string? Reason { get; set; }
+// }
 
 #endregion

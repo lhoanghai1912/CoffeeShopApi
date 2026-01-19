@@ -102,72 +102,76 @@ public class UsersController : ControllerBase
         return Ok(ApiResponse<object>.Ok(null, message));
     }
 
+    /// <summary>
+    /// Quên mật khẩu
+    /// </summary>
+    
     #endregion
 
     #region Account Lifecycle Endpoints
 
-    /// <summary>
-    /// User tự deactivate tài khoản của mình
-    /// </summary>
-    [HttpPost("deactivate")]
-    public async Task<IActionResult> DeactivateMyAccount([FromBody] DeactivateUserRequest? request)
-    {
-        var userId = GetCurrentUserId();
-        if (userId == null)
-            return Unauthorized(ApiResponse<object>.Fail("Không xác định được user"));
-
-        var success = await _userService.DeactivateUserAsync(userId.Value, request?.Reason);
-        if (!success)
-            return NotFound(ApiResponse<object>.NotFound("Không tìm thấy user"));
-
-        return Ok(ApiResponse<object>.Ok(null, "Tài khoản đã được vô hiệu hóa"));
-    }
+    // /// <summary>
+    // /// User tự deactivate tài khoản của mình
+    // /// </summary>
+    // [HttpPost("deactivate")]
+    // public async Task<IActionResult> DeactivateMyAccount([FromBody] DeactivateUserRequest? request)
+    // {
+    //     var userId = GetCurrentUserId();
+    //     if (userId == null)
+    //         return Unauthorized(ApiResponse<object>.Fail("Không xác định được user"));
+    //
+    //     var success = await _userService.DeactivateUserAsync(userId.Value, request?.Reason);
+    //     if (!success)
+    //         return NotFound(ApiResponse<object>.NotFound("Không tìm thấy user"));
+    //
+    //     return Ok(ApiResponse<object>.Ok(null, "Tài khoản đã được vô hiệu hóa"));
+    // }
 
     #endregion
 
     #region Admin Endpoints (Future - cần phân quyền)
 
-    /// <summary>
-    /// [ADMIN] Lấy thông tin profile của user khác
-    /// </summary>
-    [HttpGet("{userId:int}")]
-    // [Authorize(Policy = "RequirePermission:user.view.all")]
-    public async Task<IActionResult> GetUserProfile(int userId)
-    {
-        var profile = await _userService.GetProfileWithStatsAsync(userId);
-        if (profile == null)
-            return NotFound(ApiResponse<object>.NotFound("Không tìm thấy user"));
-
-        return Ok(ApiResponse<object>.Ok(profile));
-    }
+    // /// <summary>
+    // /// [ADMIN] Lấy thông tin profile của user khác
+    // /// </summary>
+    // [HttpGet("{userId:int}")]
+    // // [Authorize(Policy = "RequirePermission:user.view.all")]
+    // public async Task<IActionResult> GetUserProfile(int userId)
+    // {
+    //     var profile = await _userService.GetProfileWithStatsAsync(userId);
+    //     if (profile == null)
+    //         return NotFound(ApiResponse<object>.NotFound("Không tìm thấy user"));
+    //
+    //     return Ok(ApiResponse<object>.Ok(profile));
+    // }
 
     /// <summary>
     /// [ADMIN] Deactivate user
     /// </summary>
-    [HttpPost("{userId:int}/deactivate")]
-    // [Authorize(Policy = "RequirePermission:user.delete")]
-    public async Task<IActionResult> DeactivateUser(int userId, [FromBody] DeactivateUserRequest? request)
-    {
-        var success = await _userService.DeactivateUserAsync(userId, request?.Reason);
-        if (!success)
-            return NotFound(ApiResponse<object>.NotFound("Không tìm thấy user"));
-
-        return Ok(ApiResponse<object>.Ok(null, "Đã vô hiệu hóa tài khoản"));
-    }
+    // [HttpPost("{userId:int}/deactivate")]
+    // // [Authorize(Policy = "RequirePermission:user.delete")]
+    // public async Task<IActionResult> DeactivateUser(int userId, [FromBody] DeactivateUserRequest? request)
+    // {
+    //     var success = await _userService.DeactivateUserAsync(userId, request?.Reason);
+    //     if (!success)
+    //         return NotFound(ApiResponse<object>.NotFound("Không tìm thấy user"));
+    //
+    //     return Ok(ApiResponse<object>.Ok(null, "Đã vô hiệu hóa tài khoản"));
+    // }
 
     /// <summary>
     /// [ADMIN] Reactivate user
     /// </summary>
-    [HttpPost("{userId:int}/reactivate")]
-    // [Authorize(Policy = "RequirePermission:user.update.all")]
-    public async Task<IActionResult> ReactivateUser(int userId)
-    {
-        var success = await _userService.ReactivateUserAsync(userId);
-        if (!success)
-            return NotFound(ApiResponse<object>.NotFound("Không tìm thấy user"));
-
-        return Ok(ApiResponse<object>.Ok(null, "Đã kích hoạt lại tài khoản"));
-    }
+    // [HttpPost("{userId:int}/reactivate")]
+    // // [Authorize(Policy = "RequirePermission:user.update.all")]
+    // public async Task<IActionResult> ReactivateUser(int userId)
+    // {
+    //     var success = await _userService.ReactivateUserAsync(userId);
+    //     if (!success)
+    //         return NotFound(ApiResponse<object>.NotFound("Không tìm thấy user"));
+    //
+    //     return Ok(ApiResponse<object>.Ok(null, "Đã kích hoạt lại tài khoản"));
+    // }
 
     #endregion
 }
