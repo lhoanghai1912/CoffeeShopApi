@@ -45,15 +45,18 @@ public class OrderService : IOrderService
 {
     private readonly IOrderRepository _orderRepository;
     private readonly IProductRepository _productRepository;
+    private readonly IUserAddressService _userAddressService;
     private readonly AppDbContext _context;
 
     public OrderService(
         IOrderRepository orderRepository,
         IProductRepository productRepository,
+        IUserAddressService userAddressService,
         AppDbContext context)
     {
         _orderRepository = orderRepository;
         _productRepository = productRepository;
+        _userAddressService = userAddressService;
         _context = context;
     }
 
@@ -131,7 +134,7 @@ public class OrderService : IOrderService
             {
                 OrderCode = await _orderRepository.GenerateOrderCodeAsync(),
                 UserId = request.UserId,
-                Status = OrderStatus.Draft,
+                Status = OrderStatus.Pending,
                 Note = request.Note,
                 ShippingAddress = request.ShippingAddress,
                 PhoneNumber = request.PhoneNumber
@@ -309,6 +312,18 @@ public class OrderService : IOrderService
         if (!order.OrderItems.Any())
             throw new InvalidOperationException("Không thể checkout đơn hàng trống");
 
+        // Validate và snapshot địa chỉ giao hàng
+        if (!order.UserId.HasValue)
+            throw new InvalidOperationException("Đơn hàng phải có UserId để checkout");
+
+        if (!request.UserAddressId.HasValue)
+            throw new InvalidOperationException("Vui lòng chọn địa chỉ giao hàng");
+
+        // Validate UserAddressId thuộc về UserId
+        var userAddress = await _userAddressService.GetAddressEntityAsync(request.UserAddressId.Value, order.UserId.Value);
+        if (userAddress == null)
+            throw new ArgumentException("Địa chỉ giao hàng không hợp lệ hoặc không thuộc về bạn");
+
         using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
@@ -317,11 +332,13 @@ public class OrderService : IOrderService
             if (validationErrors.Any())
                 throw new InvalidOperationException($"Lỗi validation: {string.Join("; ", validationErrors)}");
 
-            // Cập nhật thông tin từ request
-            if (!string.IsNullOrEmpty(request.ShippingAddress))
-                order.ShippingAddress = request.ShippingAddress;
-            if (!string.IsNullOrEmpty(request.PhoneNumber))
-                order.PhoneNumber = request.PhoneNumber;
+            // ✅ SNAPSHOT địa chỉ giao hàng - Copy text data vào Order
+            // Không dùng FK để đảm bảo lịch sử order không bị ảnh hưởng khi user update/delete địa chỉ
+            order.RecipientName = userAddress.RecipientName;
+            order.ShippingAddress = userAddress.AddressLine;
+            order.PhoneNumber = userAddress.PhoneNumber;
+
+            // Cập nhật ghi chú từ request
             if (!string.IsNullOrEmpty(request.Note))
                 order.Note = request.Note;
 
@@ -587,6 +604,7 @@ public class OrderService : IOrderService
             FinalAmount = order.FinalAmount,
             VoucherId = order.VoucherId,
             Note = order.Note,
+            RecipientName = order.RecipientName,
             ShippingAddress = order.ShippingAddress,
             PhoneNumber = order.PhoneNumber,
             CreatedAt = order.CreatedAt,

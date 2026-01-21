@@ -176,6 +176,10 @@ namespace CoffeeShopApi.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<string>("RecipientName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<string>("ShippingAddress")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -912,6 +916,55 @@ namespace CoffeeShopApi.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("CoffeeShopApi.Models.UserAddress", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AddressLine")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Label")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("RecipientName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("UserId", "IsDefault")
+                        .HasFilter("[IsDefault] = 1");
+
+                    b.ToTable("UserAddresses");
+                });
+
             modelBuilder.Entity("CoffeeShopApi.Models.OptionGroup", b =>
                 {
                     b.HasOne("CoffeeShopApi.Models.Product", "Product")
@@ -1029,6 +1082,17 @@ namespace CoffeeShopApi.Migrations
                     b.Navigation("Role");
                 });
 
+            modelBuilder.Entity("CoffeeShopApi.Models.UserAddress", b =>
+                {
+                    b.HasOne("CoffeeShopApi.Models.User", "User")
+                        .WithMany("UserAddresses")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("CoffeeShopApi.Models.Category", b =>
                 {
                     b.Navigation("Products");
@@ -1064,6 +1128,11 @@ namespace CoffeeShopApi.Migrations
                     b.Navigation("RolePermissions");
 
                     b.Navigation("Users");
+                });
+
+            modelBuilder.Entity("CoffeeShopApi.Models.User", b =>
+                {
+                    b.Navigation("UserAddresses");
                 });
 #pragma warning restore 612, 618
         }

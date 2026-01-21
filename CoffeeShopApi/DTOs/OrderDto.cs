@@ -60,9 +60,20 @@ public class UpdateOrderRequest
 /// </summary>
 public class CheckoutOrderRequest
 {
+    /// <summary>
+    /// ID của địa chỉ giao hàng (UserAddress) - bắt buộc cho checkout
+    /// Địa chỉ này sẽ được snapshot vào Order
+    /// </summary>
+    public int? UserAddressId { get; set; }
+
+    /// <summary>
+    /// Voucher áp dụng (optional)
+    /// </summary>
     public int? VoucherId { get; set; }
-    public string? ShippingAddress { get; set; }
-    public string? PhoneNumber { get; set; }
+
+    /// <summary>
+    /// Ghi chú đơn hàng (optional)
+    /// </summary>
     public string? Note { get; set; }
 }
 
@@ -95,8 +106,22 @@ public class OrderResponse
     public decimal FinalAmount { get; set; }
     public int? VoucherId { get; set; }
     public string? Note { get; set; }
+    
+    /// <summary>
+    /// [SNAPSHOT] Tên người nhận hàng
+    /// </summary>
+    public string? RecipientName { get; set; }
+    
+    /// <summary>
+    /// [SNAPSHOT] Địa chỉ giao hàng
+    /// </summary>
     public string? ShippingAddress { get; set; }
+    
+    /// <summary>
+    /// [SNAPSHOT] Số điện thoại nhận hàng
+    /// </summary>
     public string? PhoneNumber { get; set; }
+    
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public DateTime? PaidAt { get; set; }

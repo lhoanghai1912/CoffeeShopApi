@@ -25,6 +25,11 @@ public class UserProfileResponse
     /// Thống kê đơn hàng của user (optional, load khi cần)
     /// </summary>
     public UserOrderStats? OrderStats { get; set; }
+    
+    /// <summary>
+    /// Danh sách địa chỉ giao hàng của user
+    /// </summary>
+    public List<UserAddressResponse>? Addresses { get; set; }
 }
 
 /// <summary>

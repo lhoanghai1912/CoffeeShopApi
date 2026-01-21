@@ -100,6 +100,26 @@ public class UserService : IUserService
             TotalSpent = orders.Where(o => o.Status == OrderStatus.Paid).Sum(o => o.FinalAmount)
         };
 
+        // Load addresses
+        var addresses = await _context.UserAddresses
+            .Where(a => a.UserId == userId)
+            .OrderByDescending(a => a.IsDefault)
+            .ThenByDescending(a => a.CreatedAt)
+            .ToListAsync();
+
+        response.Addresses = addresses.Select(a => new UserAddressResponse
+        {
+            Id = a.Id,
+            UserId = a.UserId,
+            RecipientName = a.RecipientName,
+            PhoneNumber = a.PhoneNumber,
+            AddressLine = a.AddressLine,
+            Label = a.Label,
+            IsDefault = a.IsDefault,
+            CreatedAt = a.CreatedAt,
+            UpdatedAt = a.UpdatedAt
+        }).ToList();
+
         return response;
     }
 

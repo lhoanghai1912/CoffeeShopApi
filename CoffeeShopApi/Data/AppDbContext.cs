@@ -11,6 +11,7 @@ public class AppDbContext : DbContext
     }
 
     public DbSet<User> Users { get; set; }
+    public DbSet<UserAddress> UserAddresses { get; set; }
     public DbSet<Role> Roles { get; set; }
     public DbSet<Permission> Permissions { get; set; }
     public DbSet<RolePermission> RolePermissions { get; set; }
@@ -33,6 +34,7 @@ public class AppDbContext : DbContext
         // Apply configurations
         modelBuilder.ApplyConfiguration(new ProductConfiguration());
         modelBuilder.ApplyConfiguration(new UserConfiguration());
+        modelBuilder.ApplyConfiguration(new UserAddressConfiguration());
         modelBuilder.ApplyConfiguration(new RoleConfiguration());
         modelBuilder.ApplyConfiguration(new CategoryConfiguration());
         modelBuilder.ApplyConfiguration(new PermissionConfiguration());

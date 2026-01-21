@@ -30,7 +30,7 @@ public class Order
     /// Trạng thái đơn hàng
     /// </summary>
     [Required]
-    public OrderStatus Status { get; set; } = OrderStatus.Draft;
+    public OrderStatus Status { get; set; } = OrderStatus.Pending;
 
     /// <summary>
     /// Tổng tiền trước giảm giá (sum của tất cả OrderItems)
@@ -68,14 +68,21 @@ public class Order
     [MaxLength(500)]
     public string? Note { get; set; }
 
+
     /// <summary>
-    /// Địa chỉ giao hàng (nếu có)
+    /// [SNAPSHOT] Tên người nhận hàng - copy từ UserAddress khi checkout
+    /// </summary>
+    [MaxLength(200)]
+    public string? RecipientName { get; set; }
+
+    /// <summary>
+    /// [SNAPSHOT] Địa chỉ giao hàng - copy từ UserAddress khi checkout
     /// </summary>
     [MaxLength(500)]
     public string? ShippingAddress { get; set; }
 
     /// <summary>
-    /// Số điện thoại nhận hàng
+    /// [SNAPSHOT] Số điện thoại nhận hàng - copy từ UserAddress khi checkout
     /// </summary>
     [MaxLength(20)]
     public string? PhoneNumber { get; set; }

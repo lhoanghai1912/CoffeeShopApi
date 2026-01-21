@@ -13,11 +13,128 @@ namespace CoffeeShopApi.Controllers;
 public class UsersController : ControllerBase
 {
     private readonly IUserService _userService;
+    private readonly IUserAddressService _userAddressService;
 
-    public UsersController(IUserService userService)
+    public UsersController(IUserService userService, IUserAddressService userAddressService)
     {
         _userService = userService;
+        _userAddressService = userAddressService;
     }
+
+    #region Address Endpoints
+
+    /// <summary>
+    /// Lấy danh sách địa chỉ của user hiện tại
+    /// </summary>
+    [HttpGet("addresses")]
+    public async Task<IActionResult> GetMyAddresses()
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+            return Unauthorized(ApiResponse<object>.Fail("Không xác định được user"));
+
+        var list = await _userAddressService.GetByUserIdAsync(userId.Value);
+        return Ok(ApiResponse<object>.Ok(list));
+    }
+
+    /// <summary>
+    /// Lấy thông tin một địa chỉ của user
+    /// </summary>
+    [HttpGet("addresses/{addressId:int}")]
+    public async Task<IActionResult> GetMyAddress(int addressId)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+            return Unauthorized(ApiResponse<object>.Fail("Không xác định được user"));
+
+        var addr = await _userAddressService.GetByIdAsync(addressId, userId.Value);
+        if (addr == null)
+            return NotFound(ApiResponse<object>.NotFound("Không tìm thấy địa chỉ"));
+
+        return Ok(ApiResponse<object>.Ok(addr));
+    }
+
+    /// <summary>
+    /// Thêm địa chỉ mới cho user hiện tại
+    /// </summary>
+    [HttpPost("addresses")]
+    public async Task<IActionResult> CreateMyAddress([FromBody] CreateUserAddressRequest request)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+            return Unauthorized(ApiResponse<object>.Fail("Không xác định được user"));
+
+        try
+        {
+            var created = await _userAddressService.CreateAsync(userId.Value, request);
+            return Ok(ApiResponse<object>.Ok(created, "Đã thêm địa chỉ"));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message));
+        }
+    }
+
+    /// <summary>
+    /// Cập nhật địa chỉ của user hiện tại
+    /// </summary>
+    [HttpPut("addresses/{addressId:int}")]
+    public async Task<IActionResult> UpdateMyAddress(int addressId, [FromBody] UpdateUserAddressRequest request)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+            return Unauthorized(ApiResponse<object>.Fail("Không xác định được user"));
+
+        try
+        {
+            var updated = await _userAddressService.UpdateAsync(addressId, userId.Value, request);
+            if (updated == null)
+                return NotFound(ApiResponse<object>.NotFound("Không tìm thấy địa chỉ"));
+
+            return Ok(ApiResponse<object>.Ok(updated, "Cập nhật địa chỉ thành công"));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message));
+        }
+    }
+
+    /// <summary>
+    /// Đặt một địa chỉ là mặc định
+    /// </summary>
+    [HttpPost("addresses/{addressId:int}/default")]
+    public async Task<IActionResult> SetDefaultAddress(int addressId)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+            return Unauthorized(ApiResponse<object>.Fail("Không xác định được user"));
+
+        var result = await _userAddressService.SetDefaultAsync(addressId, userId.Value);
+        if (result == null)
+            return NotFound(ApiResponse<object>.NotFound("Không tìm thấy địa chỉ"));
+
+        return Ok(ApiResponse<object>.Ok(result, "Đã đặt địa chỉ mặc định"));
+    }
+
+    /// <summary>
+    /// Xóa địa chỉ của user
+    /// </summary>
+    [HttpDelete("addresses/{addressId:int}")]
+    public async Task<IActionResult> DeleteMyAddress(int addressId)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+            return Unauthorized(ApiResponse<object>.Fail("Không xác định được user"));
+
+        var success = await _userAddressService.DeleteAsync(addressId, userId.Value);
+        if (!success)
+            return NotFound(ApiResponse<object>.NotFound("Không tìm thấy địa chỉ"));
+
+        return Ok(ApiResponse<object>.Ok(null, "Đã xóa địa chỉ"));
+    }
+
+    #endregion
+
 
     #region Helper Methods
 

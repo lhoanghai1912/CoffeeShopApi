@@ -138,4 +138,9 @@ public class User
     [JsonIgnore]
     public int? RoleId { get; set; } = 2; // Default: CUSTOMER
     public Role? Role { get; set; }
+
+    /// <summary>
+    /// Danh sách địa chỉ giao hàng của user
+    /// </summary>
+    public ICollection<UserAddress> UserAddresses { get; set; } = new List<UserAddress>();
 }
