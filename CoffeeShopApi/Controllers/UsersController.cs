@@ -31,7 +31,7 @@ public class UsersController : ControllerBase
     {
         var userId = GetCurrentUserId();
         if (userId == null)
-            return Unauthorized(ApiResponse<object>.Fail("Không xác định được user"));
+            return Unauthorized(ApiResponse<object>.Unauthorized("Không xác định được user"));
 
         var list = await _userAddressService.GetByUserIdAsync(userId.Value);
         return Ok(ApiResponse<object>.Ok(list));
@@ -45,7 +45,7 @@ public class UsersController : ControllerBase
     {
         var userId = GetCurrentUserId();
         if (userId == null)
-            return Unauthorized(ApiResponse<object>.Fail("Không xác định được user"));
+            return Unauthorized(ApiResponse<object>.Unauthorized("Không xác định được user"));
 
         var addr = await _userAddressService.GetByIdAsync(addressId, userId.Value);
         if (addr == null)
@@ -62,12 +62,12 @@ public class UsersController : ControllerBase
     {
         var userId = GetCurrentUserId();
         if (userId == null)
-            return Unauthorized(ApiResponse<object>.Fail("Không xác định được user"));
+            return Unauthorized(ApiResponse<object>.Unauthorized("Không xác định được user"));
 
         try
         {
             var created = await _userAddressService.CreateAsync(userId.Value, request);
-            return Ok(ApiResponse<object>.Ok(created, "Đã thêm địa chỉ"));
+            return Ok(ApiResponse<object>.Ok(created, "Thêm địa chỉ thành công"));
         }
         catch (ArgumentException ex)
         {
@@ -83,7 +83,7 @@ public class UsersController : ControllerBase
     {
         var userId = GetCurrentUserId();
         if (userId == null)
-            return Unauthorized(ApiResponse<object>.Fail("Không xác định được user"));
+            return Unauthorized(ApiResponse<object>.Unauthorized("Không xác định được user"));
 
         try
         {
@@ -107,13 +107,13 @@ public class UsersController : ControllerBase
     {
         var userId = GetCurrentUserId();
         if (userId == null)
-            return Unauthorized(ApiResponse<object>.Fail("Không xác định được user"));
+            return Unauthorized(ApiResponse<object>.Unauthorized("Không xác định được user"));
 
         var result = await _userAddressService.SetDefaultAsync(addressId, userId.Value);
         if (result == null)
             return NotFound(ApiResponse<object>.NotFound("Không tìm thấy địa chỉ"));
 
-        return Ok(ApiResponse<object>.Ok(result, "Đã đặt địa chỉ mặc định"));
+        return Ok(ApiResponse<object>.Ok(result, "Đặt địa chỉ mặc định thành công"));
     }
 
     /// <summary>
@@ -124,13 +124,13 @@ public class UsersController : ControllerBase
     {
         var userId = GetCurrentUserId();
         if (userId == null)
-            return Unauthorized(ApiResponse<object>.Fail("Không xác định được user"));
+            return Unauthorized(ApiResponse<object>.Unauthorized("Không xác định được user"));
 
         var success = await _userAddressService.DeleteAsync(addressId, userId.Value);
         if (!success)
             return NotFound(ApiResponse<object>.NotFound("Không tìm thấy địa chỉ"));
 
-        return Ok(ApiResponse<object>.Ok(null, "Đã xóa địa chỉ"));
+        return Ok(ApiResponse<object>.Ok(null, "Xóa địa chỉ thành công"));
     }
 
     #endregion
@@ -163,7 +163,7 @@ public class UsersController : ControllerBase
     {
         var userId = GetCurrentUserId();
         if (userId == null)
-            return Unauthorized(ApiResponse<object>.Fail("Không xác định được user"));
+            return Unauthorized(ApiResponse<object>.Unauthorized("Không xác định được user"));
 
         var profile = await _userService.GetProfileWithStatsAsync(userId.Value);
         if (profile == null)
@@ -181,7 +181,7 @@ public class UsersController : ControllerBase
     {
         var userId = GetCurrentUserId();
         if (userId == null)
-            return Unauthorized(ApiResponse<object>.Fail("Không xác định được user"));
+            return Unauthorized(ApiResponse<object>.Unauthorized("Không xác định được user"));
 
         try
         {
@@ -209,14 +209,14 @@ public class UsersController : ControllerBase
     {
         var userId = GetCurrentUserId();
         if (userId == null)
-            return Unauthorized(ApiResponse<object>.Fail("Không xác định được user"));
+            return Unauthorized(ApiResponse<object>.Unauthorized("Không xác định được user"));
 
         var (success, message) = await _userService.ChangePasswordAsync(userId.Value, request);
 
         if (!success)
             return BadRequest(ApiResponse<object>.Fail(message));
 
-        return Ok(ApiResponse<object>.Ok(null, message));
+        return Ok(ApiResponse<object>.Ok(null, "Đổi mật khẩu thành công"));
     }
 
     /// <summary>

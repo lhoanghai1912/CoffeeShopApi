@@ -62,7 +62,7 @@ public class ProductsController : ControllerBase
             
             var validationErrors = _requestService.ValidateProductRequest(request);
             if (validationErrors.Any())
-                return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ", validationErrors));
+                return BadRequest(ApiResponse<object>.Fail(validationErrors));
 
             if (form.Image != null && form.Image.Length > 0)
             {
@@ -89,7 +89,7 @@ public class ProductsController : ControllerBase
             
             var validationErrors = _requestService.ValidateProductRequest(request);
             if (validationErrors.Any())
-                return BadRequest(ApiResponse<object>.Fail("Du lieu khong hop le", validationErrors));
+                return BadRequest(ApiResponse<object>.Fail(validationErrors));
 
             if (form.Image != null && form.Image.Length > 0)
             {

@@ -9,7 +9,7 @@ namespace CoffeeShopApi.DTOs;
 public class LoginRequest
 {
     [Required(ErrorMessage = "Tên đăng nhập là bắt buộc")]
-    [DefaultValue("admin")]
+    [DefaultValue("lhoanghai1")]
     public string Username { get; set; }
 
     [Required(ErrorMessage = "Mật khẩu là bắt buộc")]

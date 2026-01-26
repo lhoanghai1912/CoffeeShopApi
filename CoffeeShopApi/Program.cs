@@ -28,7 +28,7 @@ builder.Services.AddControllers()
                 .Select(x => x.ErrorMessage)
                 .ToList();
 
-            var response = ApiResponse<object>.Fail("Dữ liệu không hợp lệ", errors);
+            var response = ApiResponse<object>.Fail(errors);
 
             return new BadRequestObjectResult(response);
         };

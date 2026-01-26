@@ -33,10 +33,7 @@ public class ErrorHandlingMiddleware
         context.Response.ContentType = "application/json";
         context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
 
-        var response = ApiResponse<object>.Fail(
-            "Loi server. Vui long lien he quan tri vien.",
-            new List<string> { exception.Message }
-        );
+        var response = ApiResponse<object>.ServerError(exception.Message);
 
         var options = new JsonSerializerOptions
         {

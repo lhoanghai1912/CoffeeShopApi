@@ -27,7 +27,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         var result = await _authService.LoginAsync(request);
-        if (result == null) return Unauthorized(ApiResponse<object>.Fail("Sai tài khoản hoặc mật khẩu"));
+        if (result == null) return Unauthorized(ApiResponse<object>.Unauthorized("Tên đăng nhập hoặc mật khẩu không đúng"));
         return Ok(ApiResponse<object>.Ok(result));
     }
 
@@ -48,7 +48,7 @@ public class AuthController : ControllerBase
         if (result.UserId == 0)
             return BadRequest(ApiResponse<RegisterResponse>.Fail(result.Message));
 
-        return Ok(ApiResponse<RegisterResponse>.Ok(result, result.Message));
+        return Ok(ApiResponse<RegisterResponse>.Ok(result, "Đăng ký thành công"));
     }
 
     #region Email Verification Endpoints
@@ -111,7 +111,7 @@ public class AuthController : ControllerBase
         if (!result.Success)
             return BadRequest(ApiResponse<ForgotPasswordResponse>.Fail(result.Message));
 
-        return Ok(ApiResponse<ForgotPasswordResponse>.Ok(result, result.Message));
+        return Ok(ApiResponse<ForgotPasswordResponse>.Ok(result, "Thành công"));
     }
 
     /// <summary>
@@ -129,7 +129,7 @@ public class AuthController : ControllerBase
         if (!result.Success)
             return BadRequest(ApiResponse<ResetPasswordResponse>.Fail(result.Message));
 
-        return Ok(ApiResponse<ResetPasswordResponse>.Ok(result, result.Message));
+        return Ok(ApiResponse<ResetPasswordResponse>.Ok(result, "Đổi mật khẩu thành công"));
     }
 
     /// <summary>
@@ -146,7 +146,7 @@ public class AuthController : ControllerBase
         if (!isValid)
             return BadRequest(ApiResponse<object>.Fail("Mã không hợp lệ hoặc đã hết hạn"));
 
-        return Ok(ApiResponse<object>.Ok(new { isValid = true }, "Mã hợp lệ"));
+        return Ok(ApiResponse<object>.Ok(new { isValid = true }, "Success"));
     }
 
     #endregion
