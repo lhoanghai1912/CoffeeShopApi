@@ -56,21 +56,21 @@ public class AuthController : ControllerBase
     // /// <summary>
     // /// Xác thực email với mã 6 số
     // /// </summary>
-    // /// <remarks>
-    // /// Mã có hiệu lực 15 phút.
-    // /// Sau khi xác thực thành công, tài khoản sẽ được kích hoạt và trả về token để auto-login.
-    // /// </remarks>
-    // [HttpPost("verify-email")]
+    /// <remarks>
+    /// Mã có hiệu lực 15 phút.
+    /// Sau khi xác thực thành công, tài khoản sẽ được kích hoạt và trả về token để auto-login.
+    /// </remarks>
+    [HttpPost("verify-email")]
     // public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailRequest request)
     // {
     //     var result = await _authService.VerifyEmailAsync(request);
-    //     
+    //
     //     if (!result.Success)
     //         return BadRequest(ApiResponse<VerifyEmailResponse>.Fail(result.Message));
     //
     //     return Ok(ApiResponse<VerifyEmailResponse>.Ok(result, result.Message));
     // }
-    //
+
     // /// <summary>
     // /// Gửi lại mã xác thực email
     // /// </summary>
