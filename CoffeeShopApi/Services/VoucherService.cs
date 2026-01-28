@@ -39,7 +39,17 @@ public interface IVoucherService
     Task<Voucher?> GetByIdAsync(int id);
 
     /// <summary>
-    /// Get all vouchers (Admin)
+    /// Get all vouchers with pagination (Admin)
+    /// </summary>
+    Task<PaginatedResponse<VoucherSummaryResponse>> GetPagedAsync(
+        int page = 1, 
+        int pageSize = 10, 
+        bool? isActive = null,
+        string? search = null,
+        bool? isPublic = null);
+
+    /// <summary>
+    /// Get all vouchers (Admin) - No pagination
     /// </summary>
     Task<List<VoucherSummaryResponse>> GetAllAsync(bool? isActive = null);
 
@@ -345,6 +355,50 @@ public class VoucherService : IVoucherService
             .ToListAsync();
 
         return vouchers.Select(VoucherSummaryResponse.FromEntity).ToList();
+    }
+
+    public async Task<PaginatedResponse<VoucherSummaryResponse>> GetPagedAsync(
+        int page = 1, 
+        int pageSize = 10, 
+        bool? isActive = null,
+        string? search = null,
+        bool? isPublic = null)
+    {
+        var query = _context.Vouchers.AsQueryable();
+
+        // Filter by active status
+        if (isActive.HasValue)
+        {
+            query = query.Where(v => v.IsActive == isActive.Value);
+        }
+
+        // Filter by public/private
+        if (isPublic.HasValue)
+        {
+            query = query.Where(v => v.IsPublic == isPublic.Value);
+        }
+
+        // Search by code or description
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            query = query.Where(v => 
+                v.Code.Contains(search) || 
+                (v.Description != null && v.Description.Contains(search)));
+        }
+
+        // Get total count before pagination
+        var totalCount = await query.CountAsync();
+
+        // Apply pagination
+        var vouchers = await query
+            .OrderByDescending(v => v.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        var items = vouchers.Select(VoucherSummaryResponse.FromEntity).ToList();
+
+        return new PaginatedResponse<VoucherSummaryResponse>(items, totalCount, page, pageSize);
     }
 
     public async Task<VoucherResponse> CreateAsync(CreateVoucherRequest request)

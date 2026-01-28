@@ -97,7 +97,23 @@ public class VouchersController : ControllerBase
     #region Admin Endpoints
 
     /// <summary>
-    /// [Admin] Lấy tất cả vouchers (bao gồm inactive)
+    /// [Admin] Lấy danh sách vouchers với phân trang (bao gồm inactive)
+    /// </summary>
+    [HttpGet("Paged")]
+    //[Authorize] // TODO: Add [Authorize(Policy = "RequirePermission:voucher.view.all")]
+    public async Task<IActionResult> GetVouchersPaged(
+        [FromQuery] int page = 1, 
+        [FromQuery] int pageSize = 10, 
+        [FromQuery] bool? isActive = null,
+        [FromQuery] string? search = null,
+        [FromQuery] bool? isPublic = null)
+    {
+        var pagedResult = await _voucherService.GetPagedAsync(page, pageSize, isActive, search, isPublic);
+        return Ok(ApiResponse<object>.Ok(pagedResult));
+    }
+
+    /// <summary>
+    /// [Admin] Lấy tất cả vouchers không phân trang (cho dropdown/select)
     /// </summary>
     [HttpGet]
     //[Authorize] // TODO: Add [Authorize(Policy = "RequirePermission:voucher.view.all")]

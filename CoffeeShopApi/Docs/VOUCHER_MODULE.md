@@ -241,32 +241,223 @@ GET /api/vouchers/code/WELCOME10K
 
 ### Admin Endpoints
 
-#### 5. Get All Vouchers
+#### 5. Get Vouchers with Pagination
 
 **Endpoint:** `GET /api/vouchers`
 
 **Authorization:** ADMIN/STAFF
 
 **Query Parameters:**
+- `page` : int (default=1)
+- `pageSize` : int (default=10)
 - `isActive` : bool? (filter by active status)
+- `search` : string? (search in code or description)
+- `isPublic` : bool? (filter by public/private type)
 
-**Example:**
+**Example Requests:**
 ```bash
-# Get all vouchers
-GET /api/vouchers
+# Get all vouchers (page 1, 10 items)
+GET /api/vouchers?page=1&pageSize=10
 
-# Get active vouchers only
-GET /api/vouchers?isActive=true
+# Get only active vouchers
+GET /api/vouchers?page=1&pageSize=20&isActive=true
 
-# Get inactive vouchers only
+# Get inactive vouchers
 GET /api/vouchers?isActive=false
+
+# Get only public vouchers
+GET /api/vouchers?isPublic=true&page=1
+
+# Get only private vouchers
+GET /api/vouchers?isPublic=false
+
+# Search vouchers
+GET /api/vouchers?search=BIRTHDAY
+
+# Combined filters
+GET /api/vouchers?page=1&pageSize=20&isActive=true&isPublic=false&search=VIP
 ```
 
-**Response:** Array of all vouchers (public + private)
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "pageNumber": 1,
+    "pageSize": 10,
+    "totalPages": 4,
+    "totalCount": 35,
+    "items": [
+      {
+        "id": 1,
+        "code": "WELCOME10K",
+        "description": "Giảm 10,000đ cho đơn đầu",
+        "discountType": "FixedAmount",
+        "discountValue": 10000,
+        "minOrderValue": 50000,
+        "maxDiscountAmount": null,
+        "startDate": "2025-01-01T00:00:00Z",
+        "endDate": "2025-12-31T23:59:59Z",
+        "usageLimit": 1000,
+        "usageLimitPerUser": 1,
+        "currentUsageCount": 50,
+        "remainingUses": 950,
+        "isPublic": true,
+        "isActive": true,
+        "createdAt": "2025-01-01T00:00:00Z"
+      },
+      {
+        "id": 8,
+        "code": "BIRTHDAY30K",
+        "description": "🎂 Quà sinh nhật - Giảm 30,000đ",
+        "discountType": "FixedAmount",
+        "discountValue": 30000,
+        "minOrderValue": 50000,
+        "startDate": "2025-01-01T00:00:00Z",
+        "endDate": "2025-12-31T23:59:59Z",
+        "usageLimit": null,
+        "usageLimitPerUser": 1,
+        "currentUsageCount": 0,
+        "remainingUses": null,
+        "isPublic": false,
+        "isActive": true,
+        "createdAt": "2025-01-01T00:00:00Z"
+      }
+    ]
+  }
+}
+```
+
+**Pagination Info:**
+- `pageNumber`: Current page (1-based)
+- `pageSize`: Items per page
+- `totalPages`: Total number of pages
+- `totalCount`: Total vouchers matching filters
+- `items`: Array of vouchers on current page
+
+**Use Cases:**
+```javascript
+// Frontend - Load vouchers with filters
+const loadVouchers = async (filters) => {
+  const params = new URLSearchParams({
+    page: filters.page || 1,
+    pageSize: filters.pageSize || 10,
+    ...(filters.isActive !== undefined && { isActive: filters.isActive }),
+    ...(filters.isPublic !== undefined && { isPublic: filters.isPublic }),
+    ...(filters.search && { search: filters.search })
+  });
+
+  const response = await fetch(`/api/vouchers?${params}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+
+  return await response.json();
+};
+
+// Example usage
+const activePublicVouchers = await loadVouchers({ 
+  page: 1, 
+  pageSize: 20, 
+  isActive: true, 
+  isPublic: true 
+});
+
+const privateVouchers = await loadVouchers({ 
+  isPublic: false 
+});
+
+const searchResults = await loadVouchers({ 
+  search: "BIRTHDAY",
+  page: 1 
+});
+```
 
 ---
 
-#### 6. Get Voucher by ID
+#### 6. Get All Vouchers (No Pagination)
+
+**Endpoint:** `GET /api/vouchers/all`
+
+**Authorization:** ADMIN/STAFF
+
+**Query Parameters:**
+- `isActive` : bool? (filter by active status)
+
+**Example Requests:**
+```bash
+# Get all vouchers (no pagination)
+GET /api/vouchers/all
+
+# Get only active vouchers
+GET /api/vouchers/all?isActive=true
+
+# Get inactive vouchers
+GET /api/vouchers/all?isActive=false
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "code": "WELCOME10K",
+      "description": "Giảm 10,000đ cho đơn đầu",
+      "discountType": "FixedAmount",
+      "discountValue": 10000,
+      "remainingUses": 950,
+      "isPublic": true,
+      "isActive": true
+    },
+    {
+      "id": 2,
+      "code": "SALE20",
+      "description": "Giảm 20% tối đa 50,000đ",
+      "discountType": "Percentage",
+      "discountValue": 20,
+      "remainingUses": 380,
+      "isPublic": true,
+      "isActive": true
+    }
+  ]
+}
+```
+
+**Use Cases:**
+```javascript
+// For dropdown/select options
+const loadVoucherOptions = async () => {
+  const response = await fetch('/api/vouchers/all?isActive=true', {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  const result = await response.json();
+
+  return result.data.map(v => ({
+    value: v.id,
+    label: `${v.code} - ${v.description}`
+  }));
+};
+
+// Example: Assign voucher dropdown
+<select>
+  {voucherOptions.map(option => (
+    <option key={option.value} value={option.value}>
+      {option.label}
+    </option>
+  ))}
+</select>
+```
+
+**When to Use:**
+- ✅ Dropdown/Select options
+- ✅ Bulk operations (assign, export)
+- ✅ Small datasets (< 100 items)
+- ❌ Large datasets (use paginated endpoint)
+
+---
+
+#### 7. Get Voucher by ID
 
 **Endpoint:** `GET /api/vouchers/{id}`
 
@@ -279,7 +470,7 @@ GET /api/vouchers/8
 
 ---
 
-#### 7. Create Voucher
+#### 8. Create Voucher
 
 **Endpoint:** `POST /api/vouchers`
 
@@ -330,7 +521,7 @@ GET /api/vouchers/8
 
 ---
 
-#### 8. Update Voucher
+#### 9. Update Voucher
 
 **Endpoint:** `PUT /api/vouchers/{id}`
 
@@ -349,7 +540,7 @@ GET /api/vouchers/8
 
 ---
 
-#### 9. Delete Voucher (Soft Delete)
+#### 10. Delete Voucher (Soft Delete)
 
 **Endpoint:** `DELETE /api/vouchers/{id}`
 
@@ -367,7 +558,7 @@ GET /api/vouchers/8
 
 ---
 
-#### 10. Assign Voucher to Users
+#### 11. Assign Voucher to Users
 
 **Endpoint:** `POST /api/vouchers/assign`
 
@@ -402,7 +593,7 @@ GET /api/vouchers/8
 
 ---
 
-#### 11. Get Voucher Assignments
+#### 12. Get Voucher Assignments
 
 **Endpoint:** `GET /api/vouchers/{id}/assignments`
 

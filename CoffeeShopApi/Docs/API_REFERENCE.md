@@ -527,6 +527,56 @@ Similar to POST
 
 **Authorization:** ADMIN/STAFF
 
+**Description:** Get vouchers with pagination
+
+**Query Parameters:**
+- `page` (default: 1)
+- `pageSize` (default: 10)
+- `isActive` (optional)
+- `search` (optional)
+- `isPublic` (optional)
+
+**Example:**
+```bash
+GET /api/vouchers?page=1&pageSize=20&isActive=true&search=BIRTHDAY
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "pageNumber": 1,
+    "pageSize": 20,
+    "totalPages": 2,
+    "totalCount": 35,
+    "items": [...]
+  }
+}
+```
+
+### GET /api/vouchers/all 🔒👑
+
+**Authorization:** ADMIN/STAFF
+
+**Description:** Get all vouchers without pagination (for dropdown/select)
+
+**Query Parameters:**
+- `isActive` (optional)
+
+**Example:**
+```bash
+GET /api/vouchers/all?isActive=true
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [...]
+}
+```
+
 ### POST /api/vouchers 🔒👑
 
 **Request:**
