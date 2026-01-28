@@ -99,7 +99,7 @@ public class ProductsController : ControllerBase
             var success = await _service.UpdateAsync(id, request);
             if (!success) return NotFound(ApiResponse<object>.NotFound());
             
-            return Ok(ApiResponse<object>.Ok(success, "Cap nhat product thanh cong"));
+            return Ok(ApiResponse<object>.Ok(success, "Cập nhật sản phẩm thành công"));
         }
         catch (ArgumentException ex)
         {
@@ -113,6 +113,6 @@ public class ProductsController : ControllerBase
     {
         var success = await _service.DeleteAsync(id);
         if (!success) return NotFound(ApiResponse<object>.NotFound());
-        return Ok(ApiResponse<object>.Ok(success, "Xoa product thanh cong"));
+        return Ok(ApiResponse<object>.Ok(success, "Xóa sản phẩm thành công"));
     }
 }

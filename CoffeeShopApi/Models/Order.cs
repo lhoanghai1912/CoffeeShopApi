@@ -57,10 +57,10 @@ public class Order
     public decimal FinalAmount { get; set; } = 0;
 
     /// <summary>
-    /// Voucher áp dụng (nullable, sẽ implement sau)
+    /// Voucher áp dụng (nullable)
     /// </summary>
     public int? VoucherId { get; set; }
-    // public Voucher? Voucher { get; set; } // Uncomment khi có Voucher entity
+    public Voucher? Voucher { get; set; }
 
     /// <summary>
     /// Ghi chú của khách hàng

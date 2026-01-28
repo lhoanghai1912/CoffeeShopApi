@@ -27,6 +27,11 @@ public class AppDbContext : DbContext
     public DbSet<OrderItem> OrderItems { get; set; }
     public DbSet<OrderItemOption> OrderItemOptions { get; set; }
 
+    // Voucher System
+    public DbSet<Voucher> Vouchers { get; set; }
+    public DbSet<VoucherUsage> VoucherUsages { get; set; }
+    public DbSet<UserVoucher> UserVouchers { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -46,6 +51,11 @@ public class AppDbContext : DbContext
         modelBuilder.ApplyConfiguration(new OrderConfiguration());
         modelBuilder.ApplyConfiguration(new OrderItemConfiguration());
         modelBuilder.ApplyConfiguration(new OrderItemOptionConfiguration());
+
+        // Voucher configurations
+        modelBuilder.ApplyConfiguration(new VoucherConfiguration());
+        modelBuilder.ApplyConfiguration(new VoucherUsageConfiguration());
+        modelBuilder.ApplyConfiguration(new UserVoucherConfiguration());
 
         // 1. Seed Roles
         modelBuilder.Entity<Role>().HasData(

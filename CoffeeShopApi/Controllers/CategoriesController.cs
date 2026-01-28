@@ -50,7 +50,7 @@ public class CategoriesController :  ControllerBase
     {
         var success = await _service.UpdateAsync(id, request);
         if (!success) return NotFound(ApiResponse<object>.NotFound());
-        return Ok(ApiResponse<object>.Ok(success, "Cập nhật category thành công"));
+        return Ok(ApiResponse<object>.Ok(success, "Cập nhật danh mục thành công"));
     }
 
     [HttpDelete("{id}")]
@@ -59,6 +59,6 @@ public class CategoriesController :  ControllerBase
     {
         var success = await _service.DeleteAsync(id);
         if (!success) return NotFound(ApiResponse<object>.NotFound());
-        return Ok(ApiResponse<object>.Ok(success, "Xóa category thành công"));
+        return Ok(ApiResponse<object>.Ok(success, "Xóa danh mục thành công"));
     }
 }

@@ -217,6 +217,8 @@ namespace CoffeeShopApi.Migrations
 
                     b.HasIndex("UserId");
 
+                    b.HasIndex("VoucherId");
+
                     b.ToTable("Orders");
                 });
 
@@ -965,6 +967,150 @@ namespace CoffeeShopApi.Migrations
                     b.ToTable("UserAddresses");
                 });
 
+            modelBuilder.Entity("CoffeeShopApi.Models.UserVoucher", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("AssignedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsUsed")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("UsedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("VoucherId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("VoucherId");
+
+                    b.HasIndex("UserId", "IsUsed");
+
+                    b.HasIndex("UserId", "VoucherId")
+                        .IsUnique();
+
+                    b.ToTable("UserVouchers");
+                });
+
+            modelBuilder.Entity("CoffeeShopApi.Models.Voucher", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("CurrentUsageCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("DiscountType")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("DiscountValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsPublic")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal?>("MaxDiscountAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("MinOrderValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("UsageLimit")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UsageLimitPerUser")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("IsPublic");
+
+                    b.HasIndex("StartDate", "EndDate");
+
+                    b.ToTable("Vouchers");
+                });
+
+            modelBuilder.Entity("CoffeeShopApi.Models.VoucherUsage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("LastUsedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UsageCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("VoucherId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("VoucherId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("VoucherUsages");
+                });
+
             modelBuilder.Entity("CoffeeShopApi.Models.OptionGroup", b =>
                 {
                     b.HasOne("CoffeeShopApi.Models.Product", "Product")
@@ -994,7 +1140,14 @@ namespace CoffeeShopApi.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("CoffeeShopApi.Models.Voucher", "Voucher")
+                        .WithMany("Orders")
+                        .HasForeignKey("VoucherId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("User");
+
+                    b.Navigation("Voucher");
                 });
 
             modelBuilder.Entity("CoffeeShopApi.Models.OrderItem", b =>
@@ -1093,6 +1246,44 @@ namespace CoffeeShopApi.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("CoffeeShopApi.Models.UserVoucher", b =>
+                {
+                    b.HasOne("CoffeeShopApi.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CoffeeShopApi.Models.Voucher", "Voucher")
+                        .WithMany("UserVouchers")
+                        .HasForeignKey("VoucherId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+
+                    b.Navigation("Voucher");
+                });
+
+            modelBuilder.Entity("CoffeeShopApi.Models.VoucherUsage", b =>
+                {
+                    b.HasOne("CoffeeShopApi.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CoffeeShopApi.Models.Voucher", "Voucher")
+                        .WithMany("VoucherUsages")
+                        .HasForeignKey("VoucherId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+
+                    b.Navigation("Voucher");
+                });
+
             modelBuilder.Entity("CoffeeShopApi.Models.Category", b =>
                 {
                     b.Navigation("Products");
@@ -1133,6 +1324,15 @@ namespace CoffeeShopApi.Migrations
             modelBuilder.Entity("CoffeeShopApi.Models.User", b =>
                 {
                     b.Navigation("UserAddresses");
+                });
+
+            modelBuilder.Entity("CoffeeShopApi.Models.Voucher", b =>
+                {
+                    b.Navigation("Orders");
+
+                    b.Navigation("UserVouchers");
+
+                    b.Navigation("VoucherUsages");
                 });
 #pragma warning restore 612, 618
         }

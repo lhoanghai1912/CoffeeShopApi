@@ -46,17 +46,20 @@ public class OrderService : IOrderService
     private readonly IOrderRepository _orderRepository;
     private readonly IProductRepository _productRepository;
     private readonly IUserAddressService _userAddressService;
+    private readonly IVoucherService _voucherService;
     private readonly AppDbContext _context;
 
     public OrderService(
         IOrderRepository orderRepository,
         IProductRepository productRepository,
         IUserAddressService userAddressService,
+        IVoucherService voucherService,
         AppDbContext context)
     {
         _orderRepository = orderRepository;
         _productRepository = productRepository;
         _userAddressService = userAddressService;
+        _voucherService = voucherService;
         _context = context;
     }
 
@@ -324,6 +327,9 @@ public class OrderService : IOrderService
         if (userAddress == null)
             throw new ArgumentException("Địa chỉ giao hàng không hợp lệ hoặc không thuộc về bạn");
 
+        // Track applied voucher for rollback on failure
+        Models.Voucher? appliedVoucher = null;
+
         using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
@@ -342,11 +348,32 @@ public class OrderService : IOrderService
             if (!string.IsNullOrEmpty(request.Note))
                 order.Note = request.Note;
 
-            // TODO: Apply voucher nếu có
+            // ✅ Apply voucher nếu có
             if (request.VoucherId.HasValue)
             {
-                order.VoucherId = request.VoucherId;
-                // Xử lý logic voucher ở đây khi có Voucher entity
+                // Validate voucher trước khi apply
+                var voucher = await _voucherService.GetByIdAsync(request.VoucherId.Value)
+                    ?? throw new ArgumentException("Voucher không tồn tại");
+
+                var validationResult = await _voucherService.ValidateVoucherAsync(
+                    voucher.Code, order.UserId.Value, order.SubTotal);
+
+                if (!validationResult.IsValid)
+                    throw new InvalidOperationException($"Voucher không hợp lệ: {validationResult.ErrorMessage}");
+
+                // Apply voucher (atomic update usage count)
+                appliedVoucher = await _voucherService.ApplyVoucherAsync(request.VoucherId.Value, order.UserId.Value);
+                if (appliedVoucher == null)
+                    throw new InvalidOperationException("Không thể áp dụng voucher. Voucher có thể đã hết lượt sử dụng.");
+
+                // Set voucher info on order
+                order.VoucherId = appliedVoucher.Id;
+                order.DiscountAmount = _voucherService.CalculateDiscount(appliedVoucher, order.SubTotal);
+            }
+            else
+            {
+                order.VoucherId = null;
+                order.DiscountAmount = 0;
             }
 
             // Tính lại tổng cuối
@@ -363,6 +390,20 @@ public class OrderService : IOrderService
         catch
         {
             await transaction.RollbackAsync();
+
+            // ✅ Rollback voucher usage if voucher was applied
+            if (appliedVoucher != null && order.UserId.HasValue)
+            {
+                try
+                {
+                    await _voucherService.RollbackVoucherUsageAsync(appliedVoucher.Id, order.UserId.Value);
+                }
+                catch
+                {
+                    // Log but don't rethrow - voucher rollback failure shouldn't mask original error
+                }
+            }
+
             throw;
         }
     }
@@ -412,10 +453,12 @@ public class OrderService : IOrderService
         order.CancelledAt = DateTime.UtcNow;
         order.CancelReason = request.Reason;
 
-        // TODO: Rollback voucher nếu có
-        if (order.VoucherId.HasValue)
+        // ✅ Rollback voucher nếu có
+        if (order.VoucherId.HasValue && order.UserId.HasValue)
         {
-            // Xử lý rollback voucher ở đây
+            await _voucherService.RollbackVoucherUsageAsync(order.VoucherId.Value, order.UserId.Value);
+            // Reset discount amount on the order
+            order.DiscountAmount = 0;
         }
 
         await _orderRepository.UpdateAsync(order);

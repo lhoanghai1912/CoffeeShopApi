@@ -23,7 +23,9 @@ public static class DbInitializer
                 "Orders",
                 "OrderItems",
                 "OrderItemOptions",
-                "UserAddresses"
+                "UserAddresses",
+                "Vouchers",
+                "VoucherUsages"
             };
 
             foreach (var table in tables)
@@ -65,6 +67,16 @@ public static class DbInitializer
             try
             {
                 await UserAddressSeeder.SeedSampleAddresses(context);
+            }
+            catch
+            {
+                // ignore
+            }
+
+            // Seed sample vouchers for testing
+            try
+            {
+                await VoucherSeeder.SeedSampleVouchers(context);
             }
             catch
             {
