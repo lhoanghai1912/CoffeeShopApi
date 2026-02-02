@@ -10,7 +10,7 @@ public class LoginRequest
 {
     [Required(ErrorMessage = "Tên đăng nhập là bắt buộc")]
     [DefaultValue("lhoanghai1")]
-    public string Username { get; set; }
+    public string UserName { get; set; }
 
     [Required(ErrorMessage = "Mật khẩu là bắt buộc")]
     [DefaultValue("Abcd@1234")]
@@ -22,7 +22,7 @@ public class RegisterRequest
 {
     [DefaultValue("")]
     [Required(ErrorMessage = "Tên đăng nhập là bắt buộc")]
-    public string Username { get; set; } = string.Empty;
+    public string UserName { get; set; } = string.Empty;
     
     [DefaultValue("")]
     [Required(ErrorMessage = "Email là bắt buộc")]
@@ -51,6 +51,8 @@ public class RegisterResponse
 {
     public int UserId { get; set; }
     public string Email { get; set; } = string.Empty;
+    public string UserName { get; set; } = string.Empty;
+    public string FullName { get; set; } = string.Empty;
     public string Message { get; set; } = string.Empty;
     public bool RequiresEmailVerification { get; set; } = false;
     
@@ -70,7 +72,7 @@ public class RegisterResponse
 public class AuthResponse
 {
     public int Id { get; set; }
-    public string Username { get; set; }
+    public string UserName { get; set; }
     public string? FullName { get; set; }
 
     public string? Email { get; set; }
@@ -88,9 +90,9 @@ public class AuthResponse
 public class ForgotPasswordRequest
 {
     /// <summary>
-    /// Email hoặc Username của tài khoản cần reset password
+    /// Email hoặc UserName của tài khoản cần reset password
     /// </summary>
-    [Required(ErrorMessage = "Email hoặc Username là bắt buộc")]
+    [Required(ErrorMessage = "Email hoặc UserName là bắt buộc")]
     public string EmailOrUsername { get; set; } = string.Empty;
 }
 
@@ -121,9 +123,9 @@ public class ForgotPasswordResponse
 public class ResetPasswordRequest
 {
     /// <summary>
-    /// Email hoặc Username của tài khoản
+    /// Email hoặc UserName của tài khoản
     /// </summary>
-    [Required(ErrorMessage = "Email hoặc Username là bắt buộc")]
+    [Required(ErrorMessage = "Email hoặc UserName là bắt buộc")]
     public string EmailOrUsername { get; set; } = string.Empty;
 
     /// <summary>

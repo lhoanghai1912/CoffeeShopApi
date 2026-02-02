@@ -59,6 +59,7 @@ public class OrderRepository : IOrderRepository
     {
         return await _context.Orders
             .Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.OrderItemOptions)
             .Where(o => o.UserId == userId)
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync();
@@ -69,6 +70,7 @@ public class OrderRepository : IOrderRepository
         return await _context.Orders
             .Include(o => o.User)
             .Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.OrderItemOptions)
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync();
     }
@@ -78,6 +80,7 @@ public class OrderRepository : IOrderRepository
         return await _context.Orders
             .Include(o => o.User)
             .Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.OrderItemOptions)
             .Where(o => o.Status == status)
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync();
@@ -97,7 +100,7 @@ public class OrderRepository : IOrderRepository
             query = query.Where(o => (o.OrderCode != null && o.OrderCode.ToLower().Contains(s))
                                      || (o.PhoneNumber != null && o.PhoneNumber.ToLower().Contains(s))
                                      || (o.User != null && o.User.FullName != null && o.User.FullName.ToLower().Contains(s))
-                                     || (o.User != null && o.User.Username != null && o.User.Username.ToLower().Contains(s)));
+                                     || (o.User != null && o.User.UserName != null && o.User.UserName.ToLower().Contains(s)));
         }
 
         // Apply Gridify filtering/ordering if available

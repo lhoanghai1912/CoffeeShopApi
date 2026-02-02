@@ -186,7 +186,7 @@ All endpoints return standardized `ApiResponse<T>`:
 
 ## 🧪 Sample Accounts
 
-| Username | Password | Role |
+| UserName | Password | Role |
 |----------|----------|------|
 | admin | Admin@123 | ADMIN |
 | staff01 | Staff@123 | STAFF |

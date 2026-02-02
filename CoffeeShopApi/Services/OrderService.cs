@@ -639,7 +639,7 @@ public class OrderService : IOrderService
             Id = order.Id,
             OrderCode = order.OrderCode,
             UserId = order.UserId,
-            UserName = order.User?.FullName ?? order.User?.Username,
+            UserName = order.User?.FullName ?? order.User?.UserName,
             Status = order.Status,
             SubTotal = order.SubTotal,
             DiscountAmount = order.DiscountAmount,
@@ -699,7 +699,8 @@ public class OrderService : IOrderService
             Status = order.Status,
             FinalAmount = order.FinalAmount,
             TotalItems = order.OrderItems.Sum(oi => oi.Quantity),
-            CreatedAt = order.CreatedAt
+            CreatedAt = order.CreatedAt,
+            Items = order.OrderItems.Select(MapToItemResponse).ToList()
         };
     }
 

@@ -2,6 +2,7 @@ using CoffeeShopApi.Data;
 using CoffeeShopApi.DTOs;
 using CoffeeShopApi.Models;
 using Microsoft.EntityFrameworkCore;
+using Gridify;
 
 namespace CoffeeShopApi.Services;
 
@@ -44,9 +45,9 @@ public interface IVoucherService
     Task<PaginatedResponse<VoucherSummaryResponse>> GetPagedAsync(
         int page = 1, 
         int pageSize = 10, 
-        bool? isActive = null,
         string? search = null,
-        bool? isPublic = null);
+        string? orderBy = null,
+        string? filter = null);
 
     /// <summary>
     /// Get all vouchers (Admin) - No pagination
@@ -360,25 +361,19 @@ public class VoucherService : IVoucherService
     public async Task<PaginatedResponse<VoucherSummaryResponse>> GetPagedAsync(
         int page = 1, 
         int pageSize = 10, 
-        bool? isActive = null,
         string? search = null,
-        bool? isPublic = null)
+        string? orderBy = null,
+        string? filter = null)
     {
         var query = _context.Vouchers.AsQueryable();
 
-        // Filter by active status
-        if (isActive.HasValue)
+        // Apply Gridify filter (supports: IsActive=true, IsPublic=false, etc.)
+        if (!string.IsNullOrWhiteSpace(filter))
         {
-            query = query.Where(v => v.IsActive == isActive.Value);
+            query = query.ApplyFiltering(filter);
         }
 
-        // Filter by public/private
-        if (isPublic.HasValue)
-        {
-            query = query.Where(v => v.IsPublic == isPublic.Value);
-        }
-
-        // Search by code or description
+        // Apply search (Code or Description)
         if (!string.IsNullOrWhiteSpace(search))
         {
             query = query.Where(v => 
@@ -386,12 +381,21 @@ public class VoucherService : IVoucherService
                 (v.Description != null && v.Description.Contains(search)));
         }
 
+        // Apply ordering (default: CreatedAt desc)
+        if (!string.IsNullOrWhiteSpace(orderBy))
+        {
+            query = query.ApplyOrdering(orderBy);
+        }
+        else
+        {
+            query = query.OrderByDescending(v => v.CreatedAt);
+        }
+
         // Get total count before pagination
         var totalCount = await query.CountAsync();
 
         // Apply pagination
         var vouchers = await query
-            .OrderByDescending(v => v.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();

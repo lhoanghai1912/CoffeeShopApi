@@ -1,5 +1,7 @@
 ﻿using CoffeeShopApi.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
+using System.Text;
 
 namespace CoffeeShopApi.Data;
 
@@ -18,26 +20,73 @@ public static class ProductSeeder
         {
             Directory.CreateDirectory(imagesDir);
         }
-        var imageFiles = Directory.GetFiles(imagesDir)
-            .Select(f => Path.GetFileName(f) ?? "")
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        // Quy tắc đặt tên file ảnh: không dấu, viết thường, thay khoảng trắng bằng gạch ngang
-        string ToImageFileName(string name)
+        // Lưu cả tên file gốc để mapping chính xác
+        var imageFilesList = Directory.GetFiles(imagesDir)
+            .Select(f => Path.GetFileName(f) ?? "")
+            .ToList();
+
+        // Tạo dictionary lowercase -> original name để tìm kiếm
+        var imageFilesLookup = imageFilesList
+            .GroupBy(f => f.ToLowerInvariant())
+            .ToDictionary(g => g.Key, g => g.First());
+
+        /// <summary>
+        /// Chuyển tên sản phẩm tiếng Việt thành tên file ảnh (không dấu, viết thường)
+        /// </summary>
+        string RemoveVietnameseDiacritics(string text)
         {
-            string fileName = name.ToLowerInvariant()
-                .Replace(" ", "")
+            if (string.IsNullOrEmpty(text)) return text;
+
+            // Normalize để tách dấu khỏi ký tự gốc
+            string normalized = text.Normalize(NormalizationForm.FormD);
+
+            var sb = new StringBuilder();
+            foreach (char c in normalized)
+            {
+                var unicodeCategory = CharUnicodeInfo.GetUnicodeCategory(c);
+                // Bỏ qua các ký tự dấu (NonSpacingMark)
+                if (unicodeCategory != UnicodeCategory.NonSpacingMark)
+                {
+                    sb.Append(c);
+                }
+            }
+
+            // Xử lý riêng ký tự đ/Đ (không bị tách bởi Normalize)
+            return sb.ToString()
+                .Normalize(NormalizationForm.FormC)
                 .Replace("đ", "d")
-                .Replace("ă", "a").Replace("â", "a").Replace("á", "a").Replace("à", "a").Replace("ả", "a").Replace("ã", "a").Replace("ạ", "a")
-                .Replace("ê", "e").Replace("é", "e").Replace("è", "e").Replace("ẻ", "e").Replace("ẽ", "e").Replace("ẹ", "e")
-                .Replace("ô", "o").Replace("ơ", "o").Replace("ó", "o").Replace("ò", "o").Replace("ỏ", "o").Replace("õ", "o").Replace("ọ", "o")
-                .Replace("ư", "u").Replace("ú", "u").Replace("ù", "u").Replace("ủ", "u").Replace("ũ", "u").Replace("ụ", "u")
-                .Replace("í", "i").Replace("ì", "i").Replace("ỉ", "i").Replace("ĩ", "i").Replace("ị", "i")
-                .Replace("ý", "y").Replace("ỳ", "y").Replace("ỷ", "y").Replace("ỹ", "y").Replace("ỵ", "y")
-                .Replace("ấ", "a").Replace("ầ", "a").Replace("ẩ", "a").Replace("ẫ", "a").Replace("ậ", "a")
-                .Replace("ấ", "a").Replace("ầ", "a").Replace("ẩ", "a").Replace("ẫ", "a").Replace("ậ", "a")
-                .Replace("ấ", "a").Replace("ầ", "a").Replace("ẩ", "a").Replace("ẫ", "a").Replace("ậ", "a");
-            return fileName + ".jpg";
+                .Replace("Đ", "D");
+        }
+
+        /// <summary>
+        /// Tìm file ảnh phù hợp với tên sản phẩm (hỗ trợ nhiều convention)
+        /// </summary>
+        string? FindImageFile(string productName)
+        {
+            // Tạo tên file chuẩn: loại bỏ dấu tiếng Việt và khoảng trắng
+            string baseName = RemoveVietnameseDiacritics(productName)
+                .Replace(" ", "")
+                .Replace("-", "");
+
+            // Thử tìm theo các convention khác nhau
+            var possibleNames = new[]
+            {
+                baseName.ToLowerInvariant() + ".jpg",           // caphesuada.jpg
+                baseName + ".jpg",                               // CaPheSuaDa.jpg (giữ nguyên case)
+                productName.Replace(" ", "") + ".jpg",           // CàPhêSữaĐá.jpg (có dấu)
+            };
+
+            foreach (var name in possibleNames)
+            {
+                var lowerName = name.ToLowerInvariant();
+                if (imageFilesLookup.TryGetValue(lowerName, out var actualFileName))
+                {
+                    return actualFileName;
+                }
+            }
+
+            return null;
         }
 
         var products = new List<Product>
@@ -84,14 +133,16 @@ public static class ProductSeeder
         // Gán ImageUrl dựa vào file thực tế
         foreach (var product in products)
         {
-            var fileName = ToImageFileName(product.Name);
-            if (imageFiles.Contains(fileName))
+            var foundFile = FindImageFile(product.Name);
+            if (foundFile != null)
             {
-                product.ImageUrl = $"/images/{fileName}";
+                product.ImageUrl = $"/images/{foundFile}";
+                Console.WriteLine($"✓ {product.Name} => /images/{foundFile}");
             }
             else
             {
                 product.ImageUrl = "/images/placeholder.jpg";
+                Console.WriteLine($"✗ {product.Name} => placeholder (no matching image)");
             }
         }
 
@@ -119,13 +170,30 @@ public static class ProductSeeder
                 await context.SaveChangesAsync();
 
                 context.OptionItems.AddRange(
-                    new OptionItem { OptionGroupId = sugarGroup.Id, Name = "30%", PriceAdjustment = 0, DisplayOrder = 1 },
-                    new OptionItem { OptionGroupId = sugarGroup.Id, Name = "50%", PriceAdjustment = 0, DisplayOrder = 2 },
-                    new OptionItem { OptionGroupId = sugarGroup.Id, Name = "70%", PriceAdjustment = 0, IsDefault = true, DisplayOrder = 3 },
-                    new OptionItem { OptionGroupId = sugarGroup.Id, Name = "100%", PriceAdjustment = 0, DisplayOrder = 4 }
+                    new OptionItem { OptionGroupId = sugarGroup.Id, Name = "0%", PriceAdjustment = 0, DisplayOrder = 1 },
+                    new OptionItem { OptionGroupId = sugarGroup.Id, Name = "30%", PriceAdjustment = 0, DisplayOrder = 2 },
+                    new OptionItem { OptionGroupId = sugarGroup.Id, Name = "50%", PriceAdjustment = 0, DisplayOrder = 3 },
+                    new OptionItem { OptionGroupId = sugarGroup.Id, Name = "70%", PriceAdjustment = 0, IsDefault = true, DisplayOrder = 4 },
+                    new OptionItem { OptionGroupId = sugarGroup.Id, Name = "100%", PriceAdjustment = 0, DisplayOrder = 5 }
                 );
 
-                var toppingGroup = new OptionGroup { ProductId = product.Id, Name = "Topping", IsRequired = false, AllowMultiple = true, DisplayOrder = 3 };
+                var iceGroup = new OptionGroup { ProductId = product.Id, Name = "Mức đá", IsRequired = true, AllowMultiple = false, DisplayOrder = 3 };
+                context.OptionGroups.Add(iceGroup);
+                await context.SaveChangesAsync();
+
+                context.OptionItems.AddRange(
+                    new OptionItem { OptionGroupId = iceGroup.Id, Name = "0%", PriceAdjustment = 0, DisplayOrder = 1 },
+                    new OptionItem { OptionGroupId = iceGroup.Id, Name = "30%", PriceAdjustment = 0, DisplayOrder = 2 },
+                    new OptionItem { OptionGroupId = iceGroup.Id, Name = "50%", PriceAdjustment = 0, DisplayOrder = 3 },
+                    new OptionItem
+                    {
+                        OptionGroupId = iceGroup.Id, Name = "70%", PriceAdjustment = 0, IsDefault = true,
+                        DisplayOrder = 4
+                    },
+                    new OptionItem { OptionGroupId = iceGroup.Id, Name = "100%", PriceAdjustment = 0, DisplayOrder = 5 }
+                );
+
+                var toppingGroup = new OptionGroup { ProductId = product.Id, Name = "Topping", IsRequired = false, AllowMultiple = true, DisplayOrder = 4 };
                 context.OptionGroups.Add(toppingGroup);
                 await context.SaveChangesAsync();
 

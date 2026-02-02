@@ -59,7 +59,7 @@ Hệ thống xác thực email cho CoffeeShop API với các tính năng:
 ```
 
 **Logic:**
-- Username và Email phải unique
+- UserName và Email phải unique
 - Password phải đáp ứng PasswordComplexity (chữ hoa, chữ thường, số, ký tự đặc biệt)
 - Tài khoản được tạo với `IsActive = false`, `IsEmailVerified = false`
 - Mã xác thực 6 số được tạo và hash (SHA256) trước khi lưu DB
@@ -185,7 +185,7 @@ Hệ thống xác thực email cho CoffeeShop API với các tính năng:
 ```
 
 **Validation:**
-- ✅ Username & password đúng
+- ✅ UserName & password đúng
 - ✅ Email đã verified (`IsEmailVerified = true`)
 - ✅ Tài khoản active (`IsActive = true`)
 - ✅ Cập nhật `LastLoginAt`
@@ -460,7 +460,7 @@ dotnet ef database update
 
 [//]: # (- Phải verify email trước)
 
-[//]: # (- Check DB: `SELECT IsEmailVerified FROM Users WHERE Username = '...'`)
+[//]: # (- Check DB: `SELECT IsEmailVerified FROM Users WHERE UserName = '...'`)
 
 ### Email không nhận được (Production)
 - Kiểm tra SMTP settings trong appsettings.json

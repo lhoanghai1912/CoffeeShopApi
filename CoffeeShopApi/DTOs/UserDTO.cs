@@ -13,7 +13,7 @@ namespace CoffeeShopApi.DTOs;
 public class UserProfileResponse
 {
     public int Id { get; set; }
-    public string Username { get; set; } = string.Empty;
+    public string UserName { get; set; } = string.Empty;
     public string? FullName { get; set; }
     public string? PhoneNumber { get; set; }
     public string? Email { get; set; }
@@ -49,7 +49,7 @@ public class UserOrderStats
 public class UserListItemResponse
 {
     public int Id { get; set; }
-    public string Username { get; set; } = string.Empty;
+    public string UserName { get; set; } = string.Empty;
     public string? FullName { get; set; }
     public string? PhoneNumber { get; set; }
     public bool IsActive { get; set; }
@@ -63,7 +63,7 @@ public class UserListItemResponse
 
 /// <summary>
 /// Request DTO để cập nhật profile
-/// User KHÔNG được sửa: Username, Password (qua luồng riêng)
+/// User KHÔNG được sửa: UserName, Password (qua luồng riêng)
 /// </summary>
 public class UpdateProfileRequest
 {

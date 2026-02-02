@@ -249,7 +249,7 @@ public class UserService : IUserService
         return new UserProfileResponse
         {
             Id = user.Id,
-            Username = user.Username,
+            UserName = user.UserName,
             FullName = user.FullName,
             PhoneNumber = user.PhoneNumber,
             Email = user.Email,

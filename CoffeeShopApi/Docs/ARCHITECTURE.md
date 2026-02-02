@@ -227,7 +227,7 @@ public class OrderService : IOrderService
 public class User
 {
     public int Id { get; set; }
-    public string Username { get; set; }
+    public string UserName { get; set; }
     public string Password { get; set; }  // ❌ Không trả về client
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -238,7 +238,7 @@ public class User
 public class UserProfileResponse
 {
     public int Id { get; set; }
-    public string Username { get; set; }
+    public string UserName { get; set; }
     public string FullName { get; set; }
     public string Email { get; set; }
     // ✅ No Password field
@@ -492,7 +492,7 @@ var items = await query
 
 Database có indexes trên:
 - Foreign keys
-- Frequently queried columns (Email, Username)
+- Frequently queried columns (Email, UserName)
 - Composite indexes cho complex queries
 
 ---

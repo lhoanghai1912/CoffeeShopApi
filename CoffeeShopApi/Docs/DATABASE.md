@@ -43,7 +43,7 @@ CoffeeShopApi sử dụng **SQL Server** với **Entity Framework Core 9** làm 
 │─────────────────│                │──────────────────│
 │ PK Id           │                │ PK Id            │
 │ FK RoleId       │                │ FK UserId        │
-│    Username     │                │    RecipientName │
+│    UserName     │                │    RecipientName │
 │    Password     │                │    PhoneNumber   │
 │    Email        │                │    AddressLine   │
 │    FullName     │                │    Label         │
@@ -147,7 +147,7 @@ CoffeeShopApi sử dụng **SQL Server** với **Entity Framework Core 9** làm 
 ```sql
 CREATE TABLE Users (
     Id INT PRIMARY KEY IDENTITY(1,1),
-    Username NVARCHAR(50) NOT NULL,
+    UserName NVARCHAR(50) NOT NULL,
     Password NVARCHAR(255) NOT NULL,  -- BCrypt hashed
     Email NVARCHAR(100),
     FullName NVARCHAR(100) NOT NULL,
@@ -175,7 +175,7 @@ CREATE TABLE Users (
 );
 
 -- Indexes
-CREATE UNIQUE INDEX IX_Users_Username ON Users(Username);
+CREATE UNIQUE INDEX IX_Users_Username ON Users(UserName);
 CREATE UNIQUE INDEX IX_Users_Email ON Users(Email) WHERE Email IS NOT NULL;
 CREATE INDEX IX_Users_RoleId ON Users(RoleId);
 CREATE INDEX IX_Users_IsActive ON Users(IsActive);
@@ -660,7 +660,7 @@ CREATE INDEX IX_VoucherUsages_UsedAt ON VoucherUsages(UsedAt DESC);
 
 ### Unique Indexes
 ```sql
-Users.Username          -- Login lookup
+Users.UserName          -- Login lookup
 Users.Email             -- Unique email check
 Orders.OrderCode        -- Quick order search
 Vouchers.Code           -- Validate voucher

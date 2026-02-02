@@ -132,14 +132,14 @@ curl -X POST https://localhost:5001/api/auth/login \
 ```json
 {
   "success": false,
-  "message": "Username đã tồn tại",
+  "message": "UserName đã tồn tại",
   "status": 400
 }
 ```
 
 **Validation Rules:**
 ```csharp
-✅ Username: 
+✅ UserName: 
    - Required
    - 3-50 characters
    - Unique
@@ -336,7 +336,7 @@ private string GenerateJwtToken(User user, List<string> permissions)
     {
         new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
         new Claim("userId", user.Id.ToString()),
-        new Claim("username", user.Username),
+        new Claim("username", user.UserName),
         new Claim("role", user.Role.Code),
         new Claim("permissions", string.Join(",", permissions))
     };
@@ -459,7 +459,7 @@ CoffeeShop Team
 ```sql
 CREATE TABLE Users (
     Id INT PRIMARY KEY IDENTITY,
-    Username NVARCHAR(50) UNIQUE NOT NULL,
+    UserName NVARCHAR(50) UNIQUE NOT NULL,
     Password NVARCHAR(255) NOT NULL,  -- BCrypt hash
     Email NVARCHAR(100) UNIQUE,
     FullName NVARCHAR(100) NOT NULL,
@@ -487,7 +487,7 @@ CREATE TABLE Users (
 );
 
 -- Indexes
-CREATE UNIQUE INDEX IX_Users_Username ON Users(Username);
+CREATE UNIQUE INDEX IX_Users_Username ON Users(UserName);
 CREATE UNIQUE INDEX IX_Users_Email ON Users(Email) WHERE Email IS NOT NULL;
 CREATE INDEX IX_Users_IsActive ON Users(IsActive);
 ```
@@ -558,11 +558,11 @@ public async Task<IActionResult> GetAllOrders()
 }
 ```
 
-### 4. Register Failed - Username Exists
+### 4. Register Failed - UserName Exists
 ```json
 {
   "success": false,
-  "message": "Username đã tồn tại",
+  "message": "UserName đã tồn tại",
   "status": 400
 }
 ```

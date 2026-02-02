@@ -174,7 +174,7 @@ public class UsersController : ControllerBase
 
     /// <summary>
     /// Cập nhật thông tin profile của user hiện tại
-    /// User KHÔNG được sửa: Username, Password
+    /// User KHÔNG được sửa: UserName, Password
     /// </summary>
     [HttpPut("profile")]
     public async Task<IActionResult> UpdateMyProfile([FromBody] UpdateProfileRequest request)

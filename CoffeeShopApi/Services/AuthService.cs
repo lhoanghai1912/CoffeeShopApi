@@ -84,7 +84,7 @@ public class AuthService : IAuthService
             .Include(u => u.Role)
                 .ThenInclude(r => r.RolePermissions)
                 .ThenInclude(rp => rp.Permission)
-            .FirstOrDefaultAsync(u => u.Username == username);
+            .FirstOrDefaultAsync(u => u.UserName == username);
 
         if (user == null)
             return (false, "Sai tài khoản hoặc mật khẩu", null);
@@ -108,7 +108,7 @@ public class AuthService : IAuthService
     #region  Login Method
     public async Task<AuthResponse?> LoginAsync(LoginRequest request)
     {
-        var (canLogin, errorMessage, user) = await ValidateLoginAsync(request.Username, request.Password);
+        var (canLogin, errorMessage, user) = await ValidateLoginAsync(request.UserName, request.Password);
         
         if (!canLogin || user == null)
         {
@@ -131,7 +131,7 @@ public class AuthService : IAuthService
         return new AuthResponse
         {
             Id = user.Id,
-            Username = user.Username,
+            UserName = user.UserName,
             FullName = user.FullName,
             Email = user.Email,
             PhoneNumber = user.PhoneNumber,
@@ -154,7 +154,7 @@ public class AuthService : IAuthService
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new("userId", user.Id.ToString()),
-            new("username", user.Username),
+            new("username", user.UserName),
             new("fullName", user.FullName ?? ""),
             new("isActive", user.IsActive.ToString())
         };
@@ -194,7 +194,7 @@ public class AuthService : IAuthService
     public async Task<RegisterResponse> RegisterAsync(RegisterRequest request)
     {
         // ✅ Kiểm tra username đã tồn tại
-        if (await _context.Users.AnyAsync(u => u.Username == request.Username))
+        if (await _context.Users.AnyAsync(u => u.UserName == request.UserName))
         {
             return new RegisterResponse
             {
@@ -241,7 +241,7 @@ public class AuthService : IAuthService
 
         var newUser = new User
         {
-            Username = request.Username,
+            UserName = request.UserName,
             Email = request.Email,
             Password = passwordHash,
             FullName = request.FullName,
@@ -265,7 +265,7 @@ public class AuthService : IAuthService
         await _emailService.SendWelcomeEmailAsync(request.Email, request.FullName);
         
         // // Gửi email xác thực
-        // await _emailService.SendEmailVerificationCodeAsync(request.Email, request.FullName ?? request.Username, verificationCode);
+        // await _emailService.SendEmailVerificationCodeAsync(request.Email, request.FullName ?? request.UserName, verificationCode);
 
         // Tạo token như khi đăng nhập để auto-login sau đăng ký
         var permissions = newUser.Role != null
@@ -276,8 +276,11 @@ public class AuthService : IAuthService
 
         return new RegisterResponse
         {
+            
             UserId = newUser.Id,
             Email = request.Email,
+            UserName =  request.UserName,
+            FullName = request.FullName,
             Message = "Đăng ký thành công.",
             RequiresEmailVerification = false,
             VerificationCode = null,
@@ -401,7 +404,7 @@ public class AuthService : IAuthService
     //     await _context.SaveChangesAsync();
     //
     //     // Gửi email
-    //     await _emailService.SendEmailVerificationCodeAsync(request.Email, user.FullName ?? user.Username, verificationCode);
+    //     await _emailService.SendEmailVerificationCodeAsync(request.Email, user.FullName ?? user.UserName, verificationCode);
     //
     //     var isDevelopment = _configuration.GetValue<bool>("IsDevelopment", false);
     //     var includeCodes = isDevelopment;
@@ -486,7 +489,7 @@ public class AuthService : IAuthService
         await _context.SaveChangesAsync();
 
         // Gửi email với mã reset
-        await _emailService.SendPasswordResetCodeAsync(user.Email, user.FullName ?? user.Username, resetCode);
+        await _emailService.SendPasswordResetCodeAsync(user.Email, user.FullName ?? user.UserName, resetCode);
 
         var isDevelopment = _configuration.GetValue<bool>("IsDevelopment", false);
 
@@ -546,7 +549,7 @@ public class AuthService : IAuthService
         // Gửi email thông báo password đã được đổi
         if (!string.IsNullOrEmpty(user.Email))
         {
-            await _emailService.SendPasswordChangedNotificationAsync(user.Email, user.FullName ?? user.Username);
+            await _emailService.SendPasswordChangedNotificationAsync(user.Email, user.FullName ?? user.UserName);
         }
 
         return new ResetPasswordResponse
@@ -580,7 +583,7 @@ public class AuthService : IAuthService
 
         return await _context.Users
             .FirstOrDefaultAsync(u => 
-                u.Username.ToLower() == normalized || 
+                u.UserName.ToLower() == normalized || 
                 (u.Email != null && u.Email.ToLower() == normalized));
     }
 

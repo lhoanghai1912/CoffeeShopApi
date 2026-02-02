@@ -85,7 +85,7 @@ namespace CoffeeShopApi.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_Users_Username",
                 table: "Users",
-                column: "Username",
+                column: "UserName",
                 unique: true);
         }
 

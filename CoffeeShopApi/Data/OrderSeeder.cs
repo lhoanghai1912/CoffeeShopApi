@@ -11,7 +11,7 @@ public static class OrderSeeder
         var user = await context.Users.FirstOrDefaultAsync();
         if (user == null)
         {
-            user = new User { Username = "testuser", Password = "password", FullName = "Test User", PhoneNumber = "0123456789", RoleId = 3 };
+            user = new User { UserName = "testuser", Password = "password", FullName = "Test User", PhoneNumber = "0123456789", RoleId = 3 };
             context.Users.Add(user);
             await context.SaveChangesAsync();
         }
@@ -73,24 +73,55 @@ public static class OrderSeeder
                 CreatedAt = DateTime.UtcNow
             };
 
-            // Add default size option if exists
-            var sizeGroup = await context.OptionGroups.FirstOrDefaultAsync(og => og.ProductId == product.Id && og.Name == "Size");
-            if (sizeGroup != null)
+            // ✅ Add options với tên tiếng Việt (Kích cỡ, Mức đường, Mức đá, Topping)
+            var optionGroups = await context.OptionGroups
+                .Include(og => og.OptionItems)
+                .Where(og => og.ProductId == product.Id)
+                .ToListAsync();
+
+            foreach (var optionGroup in optionGroups)
             {
-                var sizeItem = await context.OptionItems.FirstOrDefaultAsync(oi => oi.OptionGroupId == sizeGroup.Id && oi.IsDefault)
-                               ?? await context.OptionItems.FirstOrDefaultAsync(oi => oi.OptionGroupId == sizeGroup.Id);
-                if (sizeItem != null)
+                // Chọn option dựa vào yêu cầu của group
+                if (optionGroup.IsRequired)
                 {
-                    var oio = new OrderItemOption
+                    // Chọn default option nếu có, hoặc option đầu tiên
+                    var selectedOption = optionGroup.OptionItems.FirstOrDefault(oi => oi.IsDefault)
+                                      ?? optionGroup.OptionItems.FirstOrDefault();
+
+                    if (selectedOption != null)
                     {
-                        OptionGroupId = sizeGroup.Id,
-                        OptionItemId = sizeItem.Id,
-                        OptionGroupName = sizeGroup.Name,
-                        OptionItemName = sizeItem.Name,
-                        PriceAdjustment = sizeItem.PriceAdjustment
-                    };
-                    orderItem.OrderItemOptions.Add(oio);
-                    orderItem.OptionPrice += sizeItem.PriceAdjustment;
+                        orderItem.OrderItemOptions.Add(new OrderItemOption
+                        {
+                            OptionGroupId = optionGroup.Id,
+                            OptionItemId = selectedOption.Id,
+                            OptionGroupName = optionGroup.Name,
+                            OptionItemName = selectedOption.Name,
+                            PriceAdjustment = selectedOption.PriceAdjustment
+                        });
+                        orderItem.OptionPrice += selectedOption.PriceAdjustment;
+                    }
+                }
+                else if (optionGroup.AllowMultiple && optionGroup.Name == "Topping")
+                {
+                    // Với Topping (optional, allow multiple), chọn ngẫu nhiên 0-2 toppings
+                    var randomToppingCount = (seq % 3); // 0, 1, hoặc 2 toppings
+                    var selectedToppings = optionGroup.OptionItems
+                        .OrderBy(x => Guid.NewGuid()) // Random shuffle
+                        .Take(randomToppingCount)
+                        .ToList();
+
+                    foreach (var topping in selectedToppings)
+                    {
+                        orderItem.OrderItemOptions.Add(new OrderItemOption
+                        {
+                            OptionGroupId = optionGroup.Id,
+                            OptionItemId = topping.Id,
+                            OptionGroupName = optionGroup.Name,
+                            OptionItemName = topping.Name,
+                            PriceAdjustment = topping.PriceAdjustment
+                        });
+                        orderItem.OptionPrice += topping.PriceAdjustment;
+                    }
                 }
             }
 
@@ -148,23 +179,52 @@ public static class OrderSeeder
                 CreatedAt = DateTime.UtcNow
             };
 
-            var sg = await context.OptionGroups.FirstOrDefaultAsync(g => g.ProductId == product.Id && g.Name == "Size");
-            if (sg != null)
+            // ✅ Add options cho additional orders (tương tự logic trên)
+            var optionGroupsForItem = await context.OptionGroups
+                .Include(og => og.OptionItems)
+                .Where(og => og.ProductId == product.Id)
+                .ToListAsync();
+
+            foreach (var optionGroup in optionGroupsForItem)
             {
-                var si = await context.OptionItems.FirstOrDefaultAsync(x => x.OptionGroupId == sg.Id && x.IsDefault)
-                         ?? await context.OptionItems.FirstOrDefaultAsync(x => x.OptionGroupId == sg.Id);
-                if (si != null)
+                if (optionGroup.IsRequired)
                 {
-                    var oio = new OrderItemOption
+                    var selectedOption = optionGroup.OptionItems.FirstOrDefault(opt => opt.IsDefault)
+                                      ?? optionGroup.OptionItems.FirstOrDefault();
+
+                    if (selectedOption != null)
                     {
-                        OptionGroupId = sg.Id,
-                        OptionItemId = si.Id,
-                        OptionGroupName = sg.Name,
-                        OptionItemName = si.Name,
-                        PriceAdjustment = si.PriceAdjustment
-                    };
-                    oi.OrderItemOptions.Add(oio);
-                    oi.OptionPrice += si.PriceAdjustment;
+                        oi.OrderItemOptions.Add(new OrderItemOption
+                        {
+                            OptionGroupId = optionGroup.Id,
+                            OptionItemId = selectedOption.Id,
+                            OptionGroupName = optionGroup.Name,
+                            OptionItemName = selectedOption.Name,
+                            PriceAdjustment = selectedOption.PriceAdjustment
+                        });
+                        oi.OptionPrice += selectedOption.PriceAdjustment;
+                    }
+                }
+                else if (optionGroup.AllowMultiple && optionGroup.Name == "Topping")
+                {
+                    var randomCount = ((i + seq) % 3); // 0-2 toppings
+                    var selectedToppings = optionGroup.OptionItems
+                        .OrderBy(x => Guid.NewGuid())
+                        .Take(randomCount)
+                        .ToList();
+
+                    foreach (var topping in selectedToppings)
+                    {
+                        oi.OrderItemOptions.Add(new OrderItemOption
+                        {
+                            OptionGroupId = optionGroup.Id,
+                            OptionItemId = topping.Id,
+                            OptionGroupName = optionGroup.Name,
+                            OptionItemName = topping.Name,
+                            PriceAdjustment = topping.PriceAdjustment
+                        });
+                        oi.OptionPrice += topping.PriceAdjustment;
+                    }
                 }
             }
 

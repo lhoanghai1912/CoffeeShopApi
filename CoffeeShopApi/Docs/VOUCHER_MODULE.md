@@ -243,39 +243,78 @@ GET /api/vouchers/code/WELCOME10K
 
 #### 5. Get Vouchers with Pagination
 
-**Endpoint:** `GET /api/vouchers`
+**Endpoint:** `GET /api/vouchers/Paged`
 
 **Authorization:** ADMIN/STAFF
 
-**Query Parameters:**
-- `page` : int (default=1)
-- `pageSize` : int (default=10)
-- `isActive` : bool? (filter by active status)
-- `search` : string? (search in code or description)
-- `isPublic` : bool? (filter by public/private type)
+**Query Parameters (Standard):**
+- `page` : int (default=1) - Page number
+- `pageSize` : int (default=10) - Items per page
+- `search` : string? (optional) - Search in code or description
+- `orderBy` : string? (optional) - Sort expression (Gridify format)
+- `filter` : string? (optional) - Filter expression (Gridify format)
+
+**Filter Expression Syntax (Gridify):**
+```bash
+# Single condition
+filter=IsActive=true
+filter=IsPublic=false
+
+# Multiple conditions (AND)
+filter=IsActive=true,IsPublic=true
+
+# Multiple conditions (OR)
+filter=IsActive=true|IsPublic=false
+
+# Comparison operators
+filter=DiscountValue>10000
+filter=MinOrderValue>=50000
+filter=EndDate>2025-01-01
+
+# String operations
+filter=Code^=SALE        # StartsWith
+filter=Code$=2025        # EndsWith
+filter=Description@=gift # Contains
+```
+
+**OrderBy Expression Syntax:**
+```bash
+# Single field
+orderBy=CreatedAt desc
+orderBy=Code asc
+
+# Multiple fields
+orderBy=IsActive desc, CreatedAt desc
+```
 
 **Example Requests:**
 ```bash
-# Get all vouchers (page 1, 10 items)
-GET /api/vouchers?page=1&pageSize=10
+# Basic pagination
+GET /api/vouchers/Paged?page=1&pageSize=10
 
-# Get only active vouchers
-GET /api/vouchers?page=1&pageSize=20&isActive=true
+# Filter active vouchers
+GET /api/vouchers/Paged?filter=IsActive=true
 
-# Get inactive vouchers
-GET /api/vouchers?isActive=false
+# Filter public vouchers
+GET /api/vouchers/Paged?filter=IsPublic=true
 
-# Get only public vouchers
-GET /api/vouchers?isPublic=true&page=1
+# Filter active AND public
+GET /api/vouchers/Paged?filter=IsActive=true,IsPublic=true
 
-# Get only private vouchers
-GET /api/vouchers?isPublic=false
+# Filter private vouchers with high discount
+GET /api/vouchers/Paged?filter=IsPublic=false,DiscountValue>20000
 
-# Search vouchers
-GET /api/vouchers?search=BIRTHDAY
+# Search
+GET /api/vouchers/Paged?search=BIRTHDAY
 
-# Combined filters
-GET /api/vouchers?page=1&pageSize=20&isActive=true&isPublic=false&search=VIP
+# Search + Filter
+GET /api/vouchers/Paged?search=VIP&filter=IsActive=true,IsPublic=false
+
+# Sort by discount value
+GET /api/vouchers/Paged?orderBy=DiscountValue desc
+
+# Combined (filter + search + sort + page)
+GET /api/vouchers/Paged?page=1&pageSize=20&search=SALE&filter=IsActive=true&orderBy=CreatedAt desc
 ```
 
 **Response:**
@@ -305,35 +344,11 @@ GET /api/vouchers?page=1&pageSize=20&isActive=true&isPublic=false&search=VIP
         "isPublic": true,
         "isActive": true,
         "createdAt": "2025-01-01T00:00:00Z"
-      },
-      {
-        "id": 8,
-        "code": "BIRTHDAY30K",
-        "description": "🎂 Quà sinh nhật - Giảm 30,000đ",
-        "discountType": "FixedAmount",
-        "discountValue": 30000,
-        "minOrderValue": 50000,
-        "startDate": "2025-01-01T00:00:00Z",
-        "endDate": "2025-12-31T23:59:59Z",
-        "usageLimit": null,
-        "usageLimitPerUser": 1,
-        "currentUsageCount": 0,
-        "remainingUses": null,
-        "isPublic": false,
-        "isActive": true,
-        "createdAt": "2025-01-01T00:00:00Z"
       }
     ]
   }
 }
 ```
-
-**Pagination Info:**
-- `pageNumber`: Current page (1-based)
-- `pageSize`: Items per page
-- `totalPages`: Total number of pages
-- `totalCount`: Total vouchers matching filters
-- `items`: Array of vouchers on current page
 
 **Use Cases:**
 ```javascript
@@ -341,34 +356,50 @@ GET /api/vouchers?page=1&pageSize=20&isActive=true&isPublic=false&search=VIP
 const loadVouchers = async (filters) => {
   const params = new URLSearchParams({
     page: filters.page || 1,
-    pageSize: filters.pageSize || 10,
-    ...(filters.isActive !== undefined && { isActive: filters.isActive }),
-    ...(filters.isPublic !== undefined && { isPublic: filters.isPublic }),
-    ...(filters.search && { search: filters.search })
+    pageSize: filters.pageSize || 10
   });
 
-  const response = await fetch(`/api/vouchers?${params}`, {
+  // Add filter (Gridify format)
+  const filterParts = [];
+  if (filters.isActive !== undefined) {
+    filterParts.push(`IsActive=${filters.isActive}`);
+  }
+  if (filters.isPublic !== undefined) {
+    filterParts.push(`IsPublic=${filters.isPublic}`);
+  }
+  if (filterParts.length > 0) {
+    params.append('filter', filterParts.join(','));
+  }
+
+  // Add search
+  if (filters.search) {
+    params.append('search', filters.search);
+  }
+
+  // Add orderBy
+  if (filters.orderBy) {
+    params.append('orderBy', filters.orderBy);
+  }
+
+  const response = await fetch(`/api/vouchers/Paged?${params}`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
 
   return await response.json();
 };
 
-// Example usage
+// Examples
 const activePublicVouchers = await loadVouchers({ 
   page: 1, 
   pageSize: 20, 
   isActive: true, 
-  isPublic: true 
+  isPublic: true,
+  orderBy: 'CreatedAt desc'
 });
 
-const privateVouchers = await loadVouchers({ 
-  isPublic: false 
-});
-
-const searchResults = await loadVouchers({ 
-  search: "BIRTHDAY",
-  page: 1 
+const highValuePrivateVouchers = await loadVouchers({ 
+  isPublic: false,
+  filter: 'DiscountValue>50000'
 });
 ```
 

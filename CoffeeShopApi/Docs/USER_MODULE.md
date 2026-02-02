@@ -524,7 +524,7 @@ GET /api/users?page=1&pageSize=20&search=nguyen&isActive=true&roleId=2
 ```sql
 CREATE TABLE Users (
     Id INT PRIMARY KEY IDENTITY,
-    Username NVARCHAR(50) UNIQUE NOT NULL,
+    UserName NVARCHAR(50) UNIQUE NOT NULL,
     Password NVARCHAR(255) NOT NULL,
     Email NVARCHAR(100) UNIQUE,
     FullName NVARCHAR(100) NOT NULL,
@@ -552,7 +552,7 @@ CREATE TABLE Users (
 );
 
 -- Indexes
-CREATE UNIQUE INDEX IX_Users_Username ON Users(Username);
+CREATE UNIQUE INDEX IX_Users_Username ON Users(UserName);
 CREATE UNIQUE INDEX IX_Users_Email ON Users(Email) WHERE Email IS NOT NULL;
 CREATE INDEX IX_Users_RoleId ON Users(RoleId);
 CREATE INDEX IX_Users_IsActive ON Users(IsActive);
@@ -587,7 +587,7 @@ CREATE INDEX IX_UserAddresses_UserId_IsDefault ON UserAddresses(UserId, IsDefaul
 ### Profile Update Rules
 
 ```csharp
-✅ Username: Cannot be changed after registration
+✅ UserName: Cannot be changed after registration
 ✅ Email: Can be changed, must be unique, triggers verification
 ✅ FullName: Can be changed anytime
 ✅ PhoneNumber: Can be changed anytime

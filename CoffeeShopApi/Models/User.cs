@@ -15,7 +15,7 @@ public class User
     /// </summary>
     [Required] 
     [MaxLength(100)]
-    public string Username { get; set; } = string.Empty;
+    public string UserName { get; set; } = string.Empty;
     
     /// <summary>
     /// Mật khẩu đã hash (BCrypt) - KHÔNG BAO GIỜ trả ra API

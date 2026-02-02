@@ -104,11 +104,11 @@ public class VouchersController : ControllerBase
     public async Task<IActionResult> GetVouchersPaged(
         [FromQuery] int page = 1, 
         [FromQuery] int pageSize = 10, 
-        [FromQuery] bool? isActive = null,
         [FromQuery] string? search = null,
-        [FromQuery] bool? isPublic = null)
+        [FromQuery] string? orderBy = null,
+        [FromQuery] string? filter = null)
     {
-        var pagedResult = await _voucherService.GetPagedAsync(page, pageSize, isActive, search, isPublic);
+        var pagedResult = await _voucherService.GetPagedAsync(page, pageSize, search, orderBy, filter);
         return Ok(ApiResponse<object>.Ok(pagedResult));
     }
 

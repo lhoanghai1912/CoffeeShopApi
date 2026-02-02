@@ -161,9 +161,13 @@ public class OrderItemResponse
     public List<OrderItemOptionResponse> Options { get; set; } = new();
     
     /// <summary>
-    /// Mô tả ngắn các options đã chọn (ví dụ: "Size L, Trân châu đen")
+    /// Mô tả ngắn các options đã chọn
+    /// Format: "OptionGroupName: OptionItemName1, OptionItemName2"
+    /// Ví dụ: "Kích cỡ: Nhỏ (S), Mức đường: 70%, Topping: Trân châu trắng, Thạch dừa"
     /// </summary>
-    public string OptionsDescription => string.Join(", ", Options.Select(o => o.OptionItemName));
+    public string OptionsDescription => string.Join("\n", Options
+        .GroupBy(o => o.OptionGroupName)
+        .Select(g => $"{g.Key}: {string.Join(", ", g.Select(x => x.OptionItemName))}"));
 }
 
 /// <summary>
@@ -201,6 +205,8 @@ public class OrderSummaryResponse
     public decimal FinalAmount { get; set; }
     public int TotalItems { get; set; }
     public DateTime CreatedAt { get; set; }
+    public List<OrderItemResponse> Items { get; set; } = new();
+
 }
 
 #endregion

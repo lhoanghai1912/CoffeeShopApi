@@ -10,11 +10,11 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
     {
         builder.HasKey(u => u.Id);
 
-        // Username - unique, indexed for login lookup
-        builder.Property(u => u.Username)
+        // UserName - unique, indexed for login lookup
+        builder.Property(u => u.UserName)
             .IsRequired()
             .HasMaxLength(100);
-        builder.HasIndex(u => u.Username)
+        builder.HasIndex(u => u.UserName)
             .IsUnique();
 
         // Password - required, không có index (hash không cần search)

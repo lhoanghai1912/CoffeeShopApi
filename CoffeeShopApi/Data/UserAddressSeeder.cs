@@ -24,7 +24,7 @@ public static class UserAddressSeeder
             addresses.Add(new UserAddress
             {
                 UserId = user.Id,
-                RecipientName = user.FullName ?? user.Username,
+                RecipientName = user.FullName ?? user.UserName,
                 PhoneNumber = user.PhoneNumber ?? "0988123456",
                 AddressLine = "123 Đường Nguyễn Huệ, Phường Bến Nghé, Quận 1, TP.HCM",
                 Label = "Nhà",
@@ -36,7 +36,7 @@ public static class UserAddressSeeder
             addresses.Add(new UserAddress
             {
                 UserId = user.Id,
-                RecipientName = user.FullName ?? user.Username,
+                RecipientName = user.FullName ?? user.UserName,
                 PhoneNumber = "0912345678",
                 AddressLine = "456 Đường Lê Lợi, Phường Bến Thành, Quận 1, TP.HCM",
                 Label = "Văn phòng",
@@ -60,7 +60,7 @@ public static class UserAddressSeeder
             addresses.Add(new UserAddress
             {
                 UserId = user.Id,
-                RecipientName = user.FullName ?? user.Username,
+                RecipientName = user.FullName ?? user.UserName,
                 PhoneNumber = "0977654321",
                 AddressLine = "101 Đường Võ Văn Tần, Phường 6, Quận 3, TP.HCM",
                 Label = "Khác",

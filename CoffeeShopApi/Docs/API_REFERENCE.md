@@ -523,22 +523,29 @@ Similar to POST
 
 ### GET /api/vouchers/code/{code}
 
-### GET /api/vouchers 🔒👑
+### GET /api/vouchers/Paged 🔒👑
 
 **Authorization:** ADMIN/STAFF
 
-**Description:** Get vouchers with pagination
+**Description:** Get vouchers with pagination (standardized params)
 
 **Query Parameters:**
 - `page` (default: 1)
 - `pageSize` (default: 10)
-- `isActive` (optional)
-- `search` (optional)
-- `isPublic` (optional)
+- `search` (optional) - Search in code/description
+- `orderBy` (optional) - Sort expression
+- `filter` (optional) - Gridify filter expression
 
 **Example:**
 ```bash
-GET /api/vouchers?page=1&pageSize=20&isActive=true&search=BIRTHDAY
+# Basic
+GET /api/vouchers/Paged?page=1&pageSize=20
+
+# With filter
+GET /api/vouchers/Paged?filter=IsActive=true,IsPublic=false
+
+# With search + sort
+GET /api/vouchers/Paged?search=BIRTHDAY&orderBy=CreatedAt desc
 ```
 
 **Response:**
