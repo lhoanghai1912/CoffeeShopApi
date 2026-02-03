@@ -39,9 +39,8 @@ public static class DbInitializer
                         IF @maxId > 0
                             DBCC CHECKIDENT ('{table}', RESEED, @maxId);
                         ELSE
-                            DBCC CHECKIDENT ('{table}', RESEED, 0);
+                            DBCC CHECKIDENT ('{table}', RESEED, 1);
                     ";
-                    
                     context.Database.ExecuteSqlRaw(sql);
                 }
                 catch

@@ -30,6 +30,15 @@ public class OrderRepository : IOrderRepository
         _context = context;
     }
 
+    /// <summary>
+    /// Lấy thời gian hiện tại theo múi giờ Việt Nam (UTC+7)
+    /// </summary>
+    private static DateTime GetVietnamTime()
+    {
+        var vietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+        return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vietnamTimeZone);
+    }
+
     public async Task<Order?> GetByIdAsync(int id)
     {
         return await _context.Orders.FindAsync(id);
@@ -137,7 +146,7 @@ public class OrderRepository : IOrderRepository
 
     public async Task<Order> UpdateAsync(Order order)
     {
-        order.UpdatedAt = DateTime.UtcNow;
+        order.UpdatedAt = GetVietnamTime();
         _context.Orders.Update(order);
         await _context.SaveChangesAsync();
         return order;
@@ -155,7 +164,7 @@ public class OrderRepository : IOrderRepository
 
     public async Task<string> GenerateOrderCodeAsync()
     {
-        var today = DateTime.UtcNow.ToString("yyyyMMdd");
+        var today = GetVietnamTime().ToString("yyyyMMdd");
         var prefix = $"ORD-{today}-";
         
         var lastOrder = await _context.Orders

@@ -10,9 +10,14 @@ namespace CoffeeShopApi.DTOs;
 public class CreateOrderRequest
 {
     public int? UserId { get; set; }
+
+    /// <summary>
+    /// ID của địa chỉ giao hàng (UserAddress)
+    /// Nếu có, backend sẽ tự động snapshot thông tin từ UserAddress vào Order
+    /// </summary>
+    public int? UserAddressId { get; set; }
+
     public string? Note { get; set; }
-    public string? ShippingAddress { get; set; }
-    public string? PhoneNumber { get; set; }
     public List<CreateOrderItemRequest>? Items { get; set; }
 }
 
@@ -50,9 +55,13 @@ public class UpdateOrderItemRequest
 /// </summary>
 public class UpdateOrderRequest
 {
+    /// <summary>
+    /// ID của địa chỉ giao hàng (UserAddress)
+    /// Nếu có, backend sẽ tự động snapshot thông tin từ UserAddress vào Order
+    /// </summary>
+    public int? UserAddressId { get; set; }
+
     public string? Note { get; set; }
-    public string? ShippingAddress { get; set; }
-    public string? PhoneNumber { get; set; }
 }
 
 /// <summary>

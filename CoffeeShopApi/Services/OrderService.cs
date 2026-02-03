@@ -63,6 +63,15 @@ public class OrderService : IOrderService
         _context = context;
     }
 
+    /// <summary>
+    /// Lấy thời gian hiện tại theo múi giờ Việt Nam (UTC+7)
+    /// </summary>
+    private static DateTime GetVietnamTime()
+    {
+        var vietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+        return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vietnamTimeZone);
+    }
+
     #region User Ownership Validation
 
     public async Task<bool> IsOrderOwnedByUserAsync(int orderId, int userId)
@@ -139,9 +148,27 @@ public class OrderService : IOrderService
                 UserId = request.UserId,
                 Status = OrderStatus.Pending,
                 Note = request.Note,
-                ShippingAddress = request.ShippingAddress,
-                PhoneNumber = request.PhoneNumber
             };
+
+            // ✅ SNAPSHOT địa chỉ giao hàng nếu có UserAddressId
+            if (request.UserAddressId.HasValue)
+            {
+                if (!request.UserId.HasValue)
+                    throw new InvalidOperationException("UserId là bắt buộc khi sử dụng UserAddressId");
+
+                // Validate UserAddressId thuộc về UserId
+                var userAddress = await _userAddressService.GetAddressEntityAsync(
+                    request.UserAddressId.Value, 
+                    request.UserId.Value);
+
+                if (userAddress == null)
+                    throw new ArgumentException("Địa chỉ giao hàng không hợp lệ hoặc không thuộc về bạn");
+
+                // Snapshot dữ liệu địa chỉ vào Order (không dùng FK để bảo toàn lịch sử)
+                order.RecipientName = userAddress.RecipientName;
+                order.ShippingAddress = userAddress.AddressLine;
+                order.PhoneNumber = userAddress.PhoneNumber;
+            }
 
             await _orderRepository.CreateAsync(order);
 
@@ -295,9 +322,29 @@ public class OrderService : IOrderService
         if (order.Status != OrderStatus.Draft && order.Status != OrderStatus.Pending)
             throw new InvalidOperationException("Chỉ có thể cập nhật đơn hàng khi đang ở trạng thái Nháp hoặc Chờ xử lý");
 
-        order.Note = request.Note ?? order.Note;
-        order.ShippingAddress = request.ShippingAddress ?? order.ShippingAddress;
-        order.PhoneNumber = request.PhoneNumber ?? order.PhoneNumber;
+        // Cập nhật ghi chú
+        if (!string.IsNullOrEmpty(request.Note))
+            order.Note = request.Note;
+
+        // ✅ SNAPSHOT địa chỉ giao hàng nếu có UserAddressId
+        if (request.UserAddressId.HasValue)
+        {
+            if (!order.UserId.HasValue)
+                throw new InvalidOperationException("Đơn hàng phải có UserId để cập nhật địa chỉ");
+
+            // Validate UserAddressId thuộc về UserId
+            var userAddress = await _userAddressService.GetAddressEntityAsync(
+                request.UserAddressId.Value, 
+                order.UserId.Value);
+
+            if (userAddress == null)
+                throw new ArgumentException("Địa chỉ giao hàng không hợp lệ hoặc không thuộc về bạn");
+
+            // Snapshot dữ liệu địa chỉ vào Order
+            order.RecipientName = userAddress.RecipientName;
+            order.ShippingAddress = userAddress.AddressLine;
+            order.PhoneNumber = userAddress.PhoneNumber;
+        }
 
         await _orderRepository.UpdateAsync(order);
 
@@ -431,7 +478,7 @@ public class OrderService : IOrderService
             throw new InvalidOperationException("Chỉ có thể đánh dấu thanh toán cho đơn hàng Chờ xử lý hoặc Đã xác nhận");
 
         order.Status = OrderStatus.Paid;
-        order.PaidAt = DateTime.UtcNow;
+        order.PaidAt = GetVietnamTime();
         await _orderRepository.UpdateAsync(order);
 
         return await GetByIdAsync(orderId) ?? throw new Exception("Failed to mark order as paid");
@@ -450,7 +497,7 @@ public class OrderService : IOrderService
             throw new InvalidOperationException("Đơn hàng đã được hủy trước đó");
 
         order.Status = OrderStatus.Cancelled;
-        order.CancelledAt = DateTime.UtcNow;
+        order.CancelledAt = GetVietnamTime();
         order.CancelReason = request.Reason;
 
         // ✅ Rollback voucher nếu có

@@ -107,7 +107,8 @@ public class UpdateVoucherRequest
 public class AssignVoucherRequest
 {
     [Required]
-    public int VoucherId { get; set; }
+    [MinLength(1, ErrorMessage = "At least one voucher ID is required")]
+    public List<int> VoucherIds { get; set; } = new();
 
     [Required]
     [MinLength(1, ErrorMessage = "At least one user ID is required")]

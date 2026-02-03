@@ -17,11 +17,11 @@ public class AppDbContext : DbContext
     public DbSet<RolePermission> RolePermissions { get; set; }
     public DbSet<Product> Products { get; set; }
     public DbSet<Category> Categories { get; set; }
-    
+
     // Option System (thay the ProductDetail)
     public DbSet<OptionGroup> OptionGroups { get; set; }
     public DbSet<OptionItem> OptionItems { get; set; }
-    
+
     // Order System
     public DbSet<Order> Orders { get; set; }
     public DbSet<OrderItem> OrderItems { get; set; }
@@ -31,6 +31,48 @@ public class AppDbContext : DbContext
     public DbSet<Voucher> Vouchers { get; set; }
     public DbSet<VoucherUsage> VoucherUsages { get; set; }
     public DbSet<UserVoucher> UserVouchers { get; set; }
+
+    /// <summary>
+    /// Lấy thời gian hiện tại theo múi giờ Việt Nam (UTC+7)
+    /// </summary>
+    private static DateTime GetVietnamTime()
+    {
+        var vietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+        return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vietnamTimeZone);
+    }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        var entries = ChangeTracker.Entries()
+            .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified);
+
+        var now = GetVietnamTime();
+
+        foreach (var entry in entries)
+        {
+            // Set CreatedAt cho entity mới
+            if (entry.State == EntityState.Added)
+            {
+                var createdAtProperty = entry.Properties.FirstOrDefault(p => p.Metadata.Name == "CreatedAt");
+                if (createdAtProperty != null && createdAtProperty.CurrentValue == null)
+                {
+                    createdAtProperty.CurrentValue = now;
+                }
+            }
+
+            // Set UpdatedAt cho entity được thêm hoặc cập nhật
+            if (entry.State == EntityState.Added || entry.State == EntityState.Modified)
+            {
+                var updatedAtProperty = entry.Properties.FirstOrDefault(p => p.Metadata.Name == "UpdatedAt");
+                if (updatedAtProperty != null)
+                {
+                    updatedAtProperty.CurrentValue = now;
+                }
+            }
+        }
+
+        return base.SaveChangesAsync(cancellationToken);
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

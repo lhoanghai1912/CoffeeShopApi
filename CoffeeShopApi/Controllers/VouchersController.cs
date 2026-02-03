@@ -43,17 +43,17 @@ public class VouchersController : ControllerBase
     }
 
     /// <summary>
-    /// [Customer] Lấy danh sách voucher được gán cho user hiện tại (private vouchers)
+    /// [Customer] Lấy danh sách voucher khả dụng cho user (public vouchers + private vouchers được gán)
     /// </summary>
     [HttpGet("my-vouchers")]
     [Authorize]
-    public async Task<IActionResult> GetMyVouchers([FromQuery] bool? isUsed = null)
+    public async Task<IActionResult> GetMyVouchers([FromQuery] bool? onlyUnused = null)
     {
         var userId = GetCurrentUserId();
         if (userId == null)
             return Unauthorized(ApiResponse<object>.Unauthorized("Không xác định được user"));
 
-        var vouchers = await _voucherService.GetUserVouchersAsync(userId.Value, isUsed);
+        var vouchers = await _voucherService.GetAvailableVouchersForUserAsync(userId.Value, onlyUnused);
         return Ok(ApiResponse<object>.Ok(vouchers));
     }
 
@@ -201,7 +201,8 @@ public class VouchersController : ControllerBase
         try
         {
             var assignedCount = await _voucherService.AssignVoucherToUsersAsync(
-                request.VoucherId, 
+                request.VoucherIds, 
+
                 request.UserIds, 
                 request.Note);
 
@@ -228,6 +229,19 @@ public class VouchersController : ControllerBase
     {
         var assignments = await _voucherService.GetVoucherAssignmentsAsync(id);
         return Ok(ApiResponse<object>.Ok(assignments));
+    }
+
+    /// <summary>
+    /// [Admin] Tự động cập nhật IsActive của vouchers dựa trên StartDate và EndDate
+    /// </summary>
+    [HttpPost("update-status")]
+    //[Authorize] // TODO: Add [Authorize(Policy = "RequirePermission:voucher.update")]
+    public async Task<IActionResult> UpdateVoucherActiveStatus()
+    {
+        var updateCount = await _voucherService.UpdateVoucherActiveStatusAsync();
+        return Ok(ApiResponse<object>.Ok(
+            new { UpdatedCount = updateCount }, 
+            $"Đã cập nhật trạng thái cho {updateCount} voucher"));
     }
 
     #endregion

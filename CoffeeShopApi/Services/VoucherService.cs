@@ -70,12 +70,12 @@ public interface IVoucherService
     Task<bool> DeleteAsync(int id);
 
     /// <summary>
-    /// Assign a private voucher to specific users (Admin)
+    /// Assign private vouchers to specific users (Admin)
     /// </summary>
-    Task<int> AssignVoucherToUsersAsync(int voucherId, List<int> userIds, string? note = null);
+    Task<int> AssignVoucherToUsersAsync(List<int> voucherIds, List<int> userIds, string? note = null);
 
     /// <summary>
-    /// Get all vouchers assigned to a user (including used/unused)
+    /// Get all vouchers assigned to users (including used/unused)
     /// </summary>
     Task<List<UserVoucherResponse>> GetUserVouchersAsync(int userId, bool? isUsed = null);
 
@@ -83,6 +83,16 @@ public interface IVoucherService
     /// Get users assigned to a specific voucher (Admin)
     /// </summary>
     Task<List<UserVoucherResponse>> GetVoucherAssignmentsAsync(int voucherId);
+
+    /// <summary>
+    /// Get all available vouchers for a user (public vouchers + assigned private vouchers)
+    /// </summary>
+    Task<List<VoucherSummaryResponse>> GetAvailableVouchersForUserAsync(int userId, bool? onlyUnused = null);
+
+    /// <summary>
+    /// Tự động cập nhật IsActive của voucher dựa trên StartDate và EndDate
+    /// </summary>
+    Task<int> UpdateVoucherActiveStatusAsync();
 }
 
 public class VoucherService : IVoucherService
@@ -92,6 +102,15 @@ public class VoucherService : IVoucherService
     public VoucherService(AppDbContext context)
     {
         _context = context;
+    }
+
+    /// <summary>
+    /// Lấy thời gian hiện tại theo múi giờ Việt Nam (UTC+7)
+    /// </summary>
+    private static DateTime GetVietnamTime()
+    {
+        var vietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+        return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vietnamTimeZone);
     }
 
     #region Feature A: Validate Voucher
@@ -113,7 +132,7 @@ public class VoucherService : IVoucherService
         }
 
         // 2. Check date range
-        var now = DateTime.UtcNow;
+        var now = GetVietnamTime();
         if (now < voucher.StartDate)
         {
             return VoucherValidationResponse.Invalid($"This voucher is not valid yet. Valid from {voucher.StartDate:dd/MM/yyyy}");
@@ -352,7 +371,7 @@ public class VoucherService : IVoucherService
         }
 
         var vouchers = await query
-            .OrderByDescending(v => v.CreatedAt)
+            .OrderBy(v => v.Id)
             .ToListAsync();
 
         return vouchers.Select(VoucherSummaryResponse.FromEntity).ToList();
@@ -367,10 +386,34 @@ public class VoucherService : IVoucherService
     {
         var query = _context.Vouchers.AsQueryable();
 
-        // Apply Gridify filter (supports: IsActive=true, IsPublic=false, etc.)
+        // Apply custom filter logic (fallback nếu Gridify không hoạt động)
         if (!string.IsNullOrWhiteSpace(filter))
         {
-            query = query.ApplyFiltering(filter);
+            // Parse filter manually: IsActive=true,IsPublic=false hoặc IsActive=true;IsPublic=false
+            var filterParts = filter.Split(new[] { ',', ';', '&' }, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (var part in filterParts)
+            {
+                var trimmedPart = part.Trim().Replace("&", ""); // Remove extra & if exists
+
+                if (trimmedPart.StartsWith("IsActive=", StringComparison.OrdinalIgnoreCase))
+                {
+                    var value = trimmedPart.Split('=')[1].Trim();
+                    if (bool.TryParse(value, out bool isActive))
+                    {
+                        query = query.Where(v => v.IsActive == isActive);
+                    }
+                }
+                else if (trimmedPart.StartsWith("IsPublic=", StringComparison.OrdinalIgnoreCase))
+                {
+                    var value = trimmedPart.Split('=')[1].Trim();
+                    if (bool.TryParse(value, out bool isPublic))
+                    {
+                        query = query.Where(v => v.IsPublic == isPublic);
+                    }
+                }
+                // Có thể thêm các filter khác tại đây
+            }
         }
 
         // Apply search (Code or Description)
@@ -381,15 +424,8 @@ public class VoucherService : IVoucherService
                 (v.Description != null && v.Description.Contains(search)));
         }
 
-        // Apply ordering (default: CreatedAt desc)
-        if (!string.IsNullOrWhiteSpace(orderBy))
-        {
-            query = query.ApplyOrdering(orderBy);
-        }
-        else
-        {
-            query = query.OrderByDescending(v => v.CreatedAt);
-        }
+        // Always order by Id ascending to ensure consistent ordering
+        query = query.OrderBy(v => v.Id);
 
         // Get total count before pagination
         var totalCount = await query.CountAsync();
@@ -429,8 +465,8 @@ public class VoucherService : IVoucherService
             IsActive = request.IsActive,
             IsPublic = request.IsPublic,
             CurrentUsageCount = 0,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            CreatedAt = GetVietnamTime(),
+            UpdatedAt = GetVietnamTime()
         };
 
         _context.Vouchers.Add(voucher);
@@ -502,39 +538,68 @@ public class VoucherService : IVoucherService
 
     #region Private Voucher Assignment
 
-    public async Task<int> AssignVoucherToUsersAsync(int voucherId, List<int> userIds, string? note = null)
+    public async Task<int> AssignVoucherToUsersAsync(List<int> voucherIds, List<int> userIds, string? note = null)
     {
-        var voucher = await _context.Vouchers.FindAsync(voucherId);
-        if (voucher == null)
-            throw new ArgumentException("Voucher not found");
-
-        if (voucher.IsPublic)
-            throw new InvalidOperationException("Cannot assign public vouchers to users. Only private vouchers can be assigned.");
-
-        // Get existing assignments to avoid duplicates
-        var existingAssignments = await _context.UserVouchers
-            .Where(uv => uv.VoucherId == voucherId && userIds.Contains(uv.UserId))
-            .Select(uv => uv.UserId)
-            .ToListAsync();
-
-        var newUserIds = userIds.Except(existingAssignments).ToList();
-
-        if (!newUserIds.Any())
-            return 0;
-
-        var userVouchers = newUserIds.Select(userId => new UserVoucher
+        try
         {
-            VoucherId = voucherId,
-            UserId = userId,
-            IsUsed = false,
-            AssignedAt = DateTime.UtcNow,
-            Note = note
-        }).ToList();
+            // Lấy tất cả voucher cần gán
+            var vouchers = await _context.Vouchers
+                .Where(v => voucherIds.Contains(v.Id) && !v.IsPublic && v.IsActive)
+                .ToListAsync();
 
-        await _context.UserVouchers.AddRangeAsync(userVouchers);
-        await _context.SaveChangesAsync();
+            if (!vouchers.Any())
+                throw new ArgumentException("Không tìm thấy voucher hợp lệ để gán");
 
-        return userVouchers.Count;
+            // Kiểm tra user IDs có tồn tại không
+            var existingUserIds = await _context.Users
+                .Where(u => userIds.Contains(u.Id))
+                .Select(u => u.Id)
+                .ToListAsync();
+
+            var invalidUserIds = userIds.Except(existingUserIds).ToList();
+            if (invalidUserIds.Any())
+                throw new ArgumentException($"User IDs không tồn tại: {string.Join(", ", invalidUserIds)}");
+
+            // Lấy các assignment đã tồn tại để tránh trùng lặp
+            var existingAssignments = await _context.UserVouchers
+                .Where(uv => voucherIds.Contains(uv.VoucherId) && userIds.Contains(uv.UserId))
+                .Select(uv => new { uv.VoucherId, uv.UserId })
+                .ToListAsync();
+
+            var newAssignments = new List<UserVoucher>();
+            foreach (var voucher in vouchers)
+            {
+                foreach (var userId in userIds)
+                {
+                    bool alreadyAssigned = existingAssignments.Any(ea => ea.VoucherId == voucher.Id && ea.UserId == userId);
+                    if (!alreadyAssigned)
+                    {
+                        newAssignments.Add(new UserVoucher
+                        {
+                            VoucherId = voucher.Id,
+                            UserId = userId,
+                            IsUsed = false,
+                            AssignedAt = GetVietnamTime(),
+                            Note = note
+                        });
+                    }
+                }
+            }
+
+            if (!newAssignments.Any())
+                return 0;
+
+            await _context.UserVouchers.AddRangeAsync(newAssignments);
+            await _context.SaveChangesAsync();
+
+            return newAssignments.Count;
+        }
+        catch (DbUpdateException ex)
+        {
+            // Log chi tiết lỗi database
+            var innerMessage = ex.InnerException?.Message ?? ex.Message;
+            throw new InvalidOperationException($"Lỗi khi lưu dữ liệu: {innerMessage}", ex);
+        }
     }
 
     public async Task<List<UserVoucherResponse>> GetUserVouchersAsync(int userId, bool? isUsed = null)
@@ -549,10 +614,49 @@ public class VoucherService : IVoucherService
         }
 
         var userVouchers = await query
-            .OrderByDescending(uv => uv.AssignedAt)
+            .OrderBy(uv => uv.Id)
             .ToListAsync();
 
         return userVouchers.Select(UserVoucherResponse.FromEntity).ToList();
+    }
+
+    public async Task<List<VoucherSummaryResponse>> GetAvailableVouchersForUserAsync(int userId, bool? onlyUnused = null)
+    {
+        var now = GetVietnamTime();
+        var results = new List<VoucherSummaryResponse>();
+
+        // 1. Lấy tất cả public vouchers (active, chưa hết hạn, còn lượt)
+        var publicVouchers = await _context.Vouchers
+            .Where(v => v.IsPublic
+                     && v.IsActive
+                     && v.EndDate >= now
+                     && v.StartDate <= now
+                     && (v.UsageLimit == null || v.CurrentUsageCount < v.UsageLimit))
+            .ToListAsync();
+
+        // 2. Lấy private vouchers đã được gán cho user
+        var userVouchersQuery = _context.UserVouchers
+            .Include(uv => uv.Voucher)
+            .Where(uv => uv.UserId == userId
+                      && !uv.Voucher.IsPublic
+                      && uv.Voucher.IsActive
+                      && uv.Voucher.EndDate >= now);
+
+        // Nếu chỉ lấy voucher chưa dùng
+        if (onlyUnused == true)
+        {
+            userVouchersQuery = userVouchersQuery.Where(uv => !uv.IsUsed);
+        }
+
+        var userVouchers = await userVouchersQuery.ToListAsync();
+        var privateVouchers = userVouchers.Select(uv => uv.Voucher).ToList();
+
+        // 3. Merge và map sang response
+        var allVouchers = publicVouchers.Concat(privateVouchers).Distinct();
+        results = allVouchers.Select(VoucherSummaryResponse.FromEntity).ToList();
+
+        // Ensure results always sorted by Id ascending
+        return results.OrderBy(v => v.Id).ToList();
     }
 
     public async Task<List<UserVoucherResponse>> GetVoucherAssignmentsAsync(int voucherId)
@@ -561,11 +665,75 @@ public class VoucherService : IVoucherService
             .Include(uv => uv.Voucher)
             .Include(uv => uv.User)
             .Where(uv => uv.VoucherId == voucherId)
-            .OrderByDescending(uv => uv.AssignedAt)
+            .OrderBy(uv => uv.Id)
             .ToListAsync();
 
         return userVouchers.Select(UserVoucherResponse.FromEntity).ToList();
     }
 
     #endregion
+
+    #region Auto update voucher active
+
+    
+
+    /// <summary>
+    /// Tự động cập nhật IsActive của voucher dựa trên StartDate và EndDate
+    /// Logic:
+    /// - Nếu now < StartDate: IsActive = false (chưa đến thời gian)
+    /// - Nếu StartDate <= now <= EndDate: IsActive = true (trong thời gian hiệu lực)
+    /// - Nếu now > EndDate: IsActive = false (đã hết hạn)
+    /// </summary>
+    /// <returns>Số lượng voucher đã được cập nhật</returns>
+    public async Task<int> UpdateVoucherActiveStatusAsync()
+    {
+        var now = GetVietnamTime();
+        var updateCount = 0;
+
+        // 1. Deactivate vouchers chưa đến thời gian (now < StartDate AND IsActive = true)
+        var notYetActiveVouchers = await _context.Vouchers
+            .Where(v => v.IsActive && now < v.StartDate)
+            .ToListAsync();
+
+        foreach (var voucher in notYetActiveVouchers)
+        {
+            voucher.IsActive = false;
+            voucher.UpdatedAt = GetVietnamTime();
+            updateCount++;
+        }
+
+        // 2. Activate vouchers trong thời gian hiệu lực (StartDate <= now <= EndDate AND IsActive = false)
+        var shouldBeActiveVouchers = await _context.Vouchers
+            .Where(v => !v.IsActive 
+                     && v.StartDate <= now 
+                     && v.EndDate >= now)
+            .ToListAsync();
+
+        foreach (var voucher in shouldBeActiveVouchers)
+        {
+            voucher.IsActive = true;
+            voucher.UpdatedAt = GetVietnamTime();
+            updateCount++;
+        }
+
+        // 3. Deactivate vouchers đã hết hạn (now > EndDate AND IsActive = true)
+        var expiredVouchers = await _context.Vouchers
+            .Where(v => v.IsActive && now > v.EndDate)
+            .ToListAsync();
+
+        foreach (var voucher in expiredVouchers)
+        {
+            voucher.IsActive = false;
+            voucher.UpdatedAt = GetVietnamTime();
+            updateCount++;
+        }
+
+        if (updateCount > 0)
+        {
+            await _context.SaveChangesAsync();
+        }
+
+        return updateCount;
+    }
 }
+    #endregion

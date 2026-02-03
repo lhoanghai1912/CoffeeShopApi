@@ -134,6 +134,9 @@ builder.Services.AddScoped<IVoucherService, VoucherService>();
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 builder.Services.AddScoped<IEmailService, EmailService>();
 
+// ✅ Background Service - Tự động cập nhật IsActive của vouchers
+builder.Services.AddHostedService<VoucherStatusUpdateService>();
+
 
 // CORS
 builder.Services.AddCors(options =>

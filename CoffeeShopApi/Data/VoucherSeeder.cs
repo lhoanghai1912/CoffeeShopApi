@@ -5,13 +5,22 @@ namespace CoffeeShopApi.Data;
 
 public static class VoucherSeeder
 {
+    /// <summary>
+    /// Lấy thời gian hiện tại theo múi giờ Việt Nam (UTC+7)
+    /// </summary>
+    private static DateTime GetVietnamTime()
+    {
+        var vietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+        return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vietnamTimeZone);
+    }
+
     public static async Task SeedSampleVouchers(AppDbContext context)
     {
         // Kiểm tra đã có voucher chưa
         if (await context.Vouchers.AnyAsync())
             return;
 
-        var now = DateTime.UtcNow;
+        var now = GetVietnamTime();
 
         var vouchers = new List<Voucher>
         {
