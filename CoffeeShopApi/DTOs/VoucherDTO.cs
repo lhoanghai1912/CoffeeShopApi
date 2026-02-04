@@ -214,7 +214,8 @@ public class VoucherSummaryResponse
     public int Id { get; set; }
     public string Code { get; set; } = string.Empty;
     public string? Description { get; set; }
-    public string DiscountDisplay { get; set; } = string.Empty;
+    public decimal DiscountValue { get; set; }
+    public DiscountType DiscountType  { get; set; }
     public bool IsActive { get; set; }
     public bool IsPublic { get; set; }
     public DateTime EndDate { get; set; }
@@ -222,21 +223,14 @@ public class VoucherSummaryResponse
 
     public static VoucherSummaryResponse FromEntity(Voucher voucher)
     {
-        var discountDisplay = voucher.DiscountType == DiscountType.FixedAmount
-            ? $"-{voucher.DiscountValue:N0}đ"
-            : $"-{voucher.DiscountValue:N0}%";
-
-        if (voucher.DiscountType == DiscountType.Percentage && voucher.MaxDiscountAmount.HasValue)
-        {
-            discountDisplay += $" (max {voucher.MaxDiscountAmount:N0}đ)";
-        }
-
+        
         return new VoucherSummaryResponse
         {
             Id = voucher.Id,
             Code = voucher.Code,
             Description = voucher.Description,
-            DiscountDisplay = discountDisplay,
+            DiscountType = voucher.DiscountType,
+            DiscountValue = voucher.DiscountValue,
             IsActive = voucher.IsActive,
             IsPublic = voucher.IsPublic,
             EndDate = voucher.EndDate,
@@ -256,7 +250,7 @@ public class UserVoucherResponse
     public int VoucherId { get; set; }
     public string VoucherCode { get; set; } = string.Empty;
     public string? VoucherDescription { get; set; }
-    public string DiscountDisplay { get; set; } = string.Empty;
+    
     public bool IsUsed { get; set; }
     public DateTime AssignedAt { get; set; }
     public DateTime? UsedAt { get; set; }
@@ -267,14 +261,7 @@ public class UserVoucherResponse
     public static UserVoucherResponse FromEntity(Models.UserVoucher userVoucher)
     {
         var voucher = userVoucher.Voucher;
-        var discountDisplay = voucher.DiscountType == Models.DiscountType.FixedAmount
-            ? $"-{voucher.DiscountValue:N0}đ"
-            : $"-{voucher.DiscountValue:N0}%";
-
-        if (voucher.DiscountType == Models.DiscountType.Percentage && voucher.MaxDiscountAmount.HasValue)
-        {
-            discountDisplay += $" (max {voucher.MaxDiscountAmount:N0}đ)";
-        }
+       
 
         return new UserVoucherResponse
         {
@@ -282,7 +269,7 @@ public class UserVoucherResponse
             VoucherId = userVoucher.VoucherId,
             VoucherCode = voucher.Code,
             VoucherDescription = voucher.Description,
-            DiscountDisplay = discountDisplay,
+            
             IsUsed = userVoucher.IsUsed,
             AssignedAt = userVoucher.AssignedAt,
             UsedAt = userVoucher.UsedAt,

@@ -3,6 +3,6 @@ namespace CoffeeShopApi.DTOs;
 
 public class ProductFormDataRequest
 {
-    public string FormField { get; set; } = string.Empty; // JSON object ch?a to�n b? th�ng tin s?n ph?m
+    public string FormField { get; set; } = string.Empty; // JSON object chứa toàn bộ thông tin của sản phẩm
     public IFormFile? Image { get; set; }
 }
