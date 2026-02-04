@@ -117,4 +117,9 @@ public class Order
     /// Danh sách các items trong đơn hàng
     /// </summary>
     public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
+
+    /// <summary>
+    /// Danh sách các voucher được áp dụng cho đơn hàng
+    /// </summary>
+    public ICollection<OrderVoucher> OrderVouchers { get; set; } = new List<OrderVoucher>();
 }

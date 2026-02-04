@@ -48,6 +48,8 @@ public class OrderRepository : IOrderRepository
     {
         return await _context.Orders
             .Include(o => o.User)
+            .Include(o => o.Voucher)
+            .Include(o => o.OrderVouchers)
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.OrderItemOptions)
             .Include(o => o.OrderItems)
@@ -59,6 +61,8 @@ public class OrderRepository : IOrderRepository
     {
         return await _context.Orders
             .Include(o => o.User)
+            .Include(o => o.Voucher)
+            .Include(o => o.OrderVouchers)
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.OrderItemOptions)
             .FirstOrDefaultAsync(o => o.OrderCode == orderCode);
@@ -67,6 +71,8 @@ public class OrderRepository : IOrderRepository
     public async Task<IEnumerable<Order>> GetByUserIdAsync(int userId)
     {
         return await _context.Orders
+            .Include(o => o.Voucher)
+            .Include(o => o.OrderVouchers)
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.OrderItemOptions)
             .Where(o => o.UserId == userId)
@@ -78,6 +84,8 @@ public class OrderRepository : IOrderRepository
     {
         return await _context.Orders
             .Include(o => o.User)
+            .Include(o => o.Voucher)
+            .Include(o => o.OrderVouchers)
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.OrderItemOptions)
             .OrderByDescending(o => o.CreatedAt)
@@ -88,6 +96,8 @@ public class OrderRepository : IOrderRepository
     {
         return await _context.Orders
             .Include(o => o.User)
+            .Include(o => o.Voucher)
+            .Include(o => o.OrderVouchers)
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.OrderItemOptions)
             .Where(o => o.Status == status)

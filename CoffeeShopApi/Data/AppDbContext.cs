@@ -31,6 +31,7 @@ public class AppDbContext : DbContext
     public DbSet<Voucher> Vouchers { get; set; }
     public DbSet<VoucherUsage> VoucherUsages { get; set; }
     public DbSet<UserVoucher> UserVouchers { get; set; }
+    public DbSet<OrderVoucher> OrderVouchers { get; set; }
 
     /// <summary>
     /// Lấy thời gian hiện tại theo múi giờ Việt Nam (UTC+7)

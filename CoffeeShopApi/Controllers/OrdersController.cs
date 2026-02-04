@@ -218,6 +218,37 @@ public class OrdersController : ControllerBase
     }
 
     /// <summary>
+    /// Preview voucher cho đơn hàng (trước khi checkout)
+    /// Dùng để hiển thị thông tin giảm giá khi nhập mã voucher
+    /// </summary>
+    [HttpPost("{orderId:int}/preview-voucher")]
+    public async Task<IActionResult> PreviewVoucher(int orderId, [FromBody] PreviewVoucherRequest request)
+    {
+        try
+        {
+            // TODO: Lấy userId từ JWT token thay vì hardcode
+            // var userId = GetCurrentUserId();
+            var order = await _orderService.GetByIdAsync(orderId);
+            if (order == null)
+                return NotFound(ApiResponse<object>.NotFound("Không tìm thấy đơn hàng"));
+
+            if (!order.UserId.HasValue)
+                return BadRequest(ApiResponse<object>.Fail("Đơn hàng phải có UserId để preview voucher"));
+
+            var result = await _orderService.PreviewVoucherAsync(orderId, request.VoucherCode, order.UserId.Value);
+            return Ok(ApiResponse<object>.Ok(result));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message));
+        }
+    }
+
+    /// <summary>
     /// Xác nhận đơn hàng (Pending -> Confirmed)
     /// </summary>
     [HttpPost("{orderId:int}/confirm")]

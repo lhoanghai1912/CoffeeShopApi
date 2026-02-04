@@ -16,7 +16,7 @@ public interface IOrderService
     Task<IEnumerable<OrderSummaryResponse>> GetAllAsync();
     Task<IEnumerable<OrderSummaryResponse>> GetByStatusAsync(OrderStatus status);
     Task<PaginatedResponse<OrderSummaryResponse>> GetPagedAsync(int page, int pageSize, string? search, string? orderBy, string? filter);
-    
+
     // Commands
     Task<OrderResponse> CreateOrderAsync(CreateOrderRequest request);
     Task<OrderResponse> AddOrderItemAsync(int orderId, CreateOrderItemRequest request);
@@ -28,13 +28,18 @@ public interface IOrderService
     Task<OrderResponse> MarkAsPaidAsync(int orderId);
     Task<OrderResponse> CancelOrderAsync(int orderId, CancelOrderRequest request);
     Task<bool> DeleteOrderAsync(int id);
-    
+
+    /// <summary>
+    /// Preview voucher cho đơn hàng (trước khi checkout)
+    /// </summary>
+    Task<VoucherPreviewResponse> PreviewVoucherAsync(int orderId, string voucherCode, int userId);
+
     // User ownership validation (không phân quyền, chỉ check ownership)
     /// <summary>
     /// Kiểm tra order có thuộc về user không
     /// </summary>
     Task<bool> IsOrderOwnedByUserAsync(int orderId, int userId);
-    
+
     /// <summary>
     /// Lấy order của user hiện tại theo ID (chỉ trả về nếu thuộc về user)
     /// </summary>
@@ -140,6 +145,8 @@ public class OrderService : IOrderService
     public async Task<OrderResponse> CreateOrderAsync(CreateOrderRequest request)
     {
         using var transaction = await _context.Database.BeginTransactionAsync();
+        var appliedVouchers = new List<Models.Voucher>(); // Track for rollback
+
         try
         {
             var order = new Order
@@ -181,7 +188,22 @@ public class OrderService : IOrderService
                 }
             }
 
-            // Tính lại tổng
+            // Tính SubTotal trước khi áp dụng voucher
+            order.SubTotal = order.OrderItems.Sum(oi => oi.TotalPrice);
+
+            // ✅ Apply nhiều voucher nếu có
+            if (request.VoucherIds != null && request.VoucherIds.Any() && request.UserId.HasValue)
+            {
+                var totalDiscount = await ApplyMultipleVouchersAsync(
+                    order, 
+                    request.VoucherIds, 
+                    request.UserId.Value, 
+                    appliedVouchers);
+
+                order.DiscountAmount = totalDiscount;
+            }
+
+            // Tính lại tổng cuối
             await RecalculateOrderTotalAsync(order);
             await _orderRepository.UpdateAsync(order);
 
@@ -192,6 +214,20 @@ public class OrderService : IOrderService
         catch
         {
             await transaction.RollbackAsync();
+
+            // Rollback voucher usage nếu đã apply
+            if (appliedVouchers.Any() && request.UserId.HasValue)
+            {
+                foreach (var voucher in appliedVouchers)
+                {
+                    try
+                    {
+                        await _voucherService.RollbackVoucherUsageAsync(voucher.Id, request.UserId.Value);
+                    }
+                    catch { /* Log but don't rethrow */ }
+                }
+            }
+
             throw;
         }
     }
@@ -395,11 +431,22 @@ public class OrderService : IOrderService
             if (!string.IsNullOrEmpty(request.Note))
                 order.Note = request.Note;
 
-            // ✅ Apply voucher nếu có
-            if (request.VoucherId.HasValue)
+            // ✅ Apply voucher nếu có (hỗ trợ cả VoucherId và VoucherCode)
+            int? voucherIdToApply = request.VoucherId;
+
+            // Nếu không có VoucherId nhưng có VoucherCode, tìm voucher theo code
+            if (!voucherIdToApply.HasValue && !string.IsNullOrWhiteSpace(request.VoucherCode))
+            {
+                var voucherByCode = await _voucherService.GetByCodeAsync(request.VoucherCode);
+                if (voucherByCode == null)
+                    throw new ArgumentException($"Mã voucher '{request.VoucherCode}' không tồn tại");
+                voucherIdToApply = voucherByCode.Id;
+            }
+
+            if (voucherIdToApply.HasValue)
             {
                 // Validate voucher trước khi apply
-                var voucher = await _voucherService.GetByIdAsync(request.VoucherId.Value)
+                var voucher = await _voucherService.GetByIdAsync(voucherIdToApply.Value)
                     ?? throw new ArgumentException("Voucher không tồn tại");
 
                 var validationResult = await _voucherService.ValidateVoucherAsync(
@@ -409,7 +456,7 @@ public class OrderService : IOrderService
                     throw new InvalidOperationException($"Voucher không hợp lệ: {validationResult.ErrorMessage}");
 
                 // Apply voucher (atomic update usage count)
-                appliedVoucher = await _voucherService.ApplyVoucherAsync(request.VoucherId.Value, order.UserId.Value);
+                appliedVoucher = await _voucherService.ApplyVoucherAsync(voucherIdToApply.Value, order.UserId.Value);
                 if (appliedVoucher == null)
                     throw new InvalidOperationException("Không thể áp dụng voucher. Voucher có thể đã hết lượt sử dụng.");
 
@@ -525,6 +572,60 @@ public class OrderService : IOrderService
         return await _orderRepository.DeleteAsync(id);
     }
 
+    public async Task<VoucherPreviewResponse> PreviewVoucherAsync(int orderId, string voucherCode, int userId)
+    {
+        var order = await _orderRepository.GetByIdWithDetailsAsync(orderId)
+            ?? throw new ArgumentException($"Order với ID {orderId} không tồn tại");
+
+        if (!order.UserId.HasValue)
+            throw new InvalidOperationException("Đơn hàng phải có UserId để preview voucher");
+
+        // Validate order ownership
+        if (order.UserId.Value != userId)
+            throw new InvalidOperationException("Đơn hàng không thuộc về bạn");
+
+        // Calculate current subtotal
+        var subTotal = order.OrderItems.Sum(oi => oi.TotalPrice);
+
+        // Validate voucher
+        var validationResult = await _voucherService.ValidateVoucherAsync(voucherCode, userId, subTotal);
+
+        if (!validationResult.IsValid)
+        {
+            return new VoucherPreviewResponse
+            {
+                IsValid = false,
+                ErrorMessage = validationResult.ErrorMessage,
+                SubTotal = subTotal,
+                DiscountAmount = 0,
+                FinalAmount = subTotal + order.ShippingFee
+            };
+        }
+
+        // Calculate discount
+        var voucher = await _voucherService.GetByCodeAsync(voucherCode);
+        var discountAmount = voucher != null ? _voucherService.CalculateDiscount(voucher, subTotal) : 0;
+        var finalAmount = subTotal - discountAmount + order.ShippingFee;
+        if (finalAmount < 0) finalAmount = 0;
+
+        return new VoucherPreviewResponse
+        {
+            IsValid = true,
+            SubTotal = subTotal,
+            DiscountAmount = discountAmount,
+            FinalAmount = finalAmount,
+            Voucher = voucher != null ? new VoucherInfoResponse
+            {
+                Id = voucher.Id,
+                Code = voucher.Code,
+                Description = voucher.Description,
+                DiscountType = voucher.DiscountType.ToString(),
+                DiscountValue = voucher.DiscountValue,
+                MaxDiscountAmount = voucher.MaxDiscountAmount
+            } : null
+        };
+    }
+
     #endregion
 
     #region Private Helper Methods
@@ -632,11 +733,94 @@ public class OrderService : IOrderService
     {
         order.SubTotal = order.OrderItems.Sum(oi => oi.TotalPrice);
         order.FinalAmount = order.SubTotal - order.DiscountAmount + order.ShippingFee;
-        
+
         if (order.FinalAmount < 0)
             order.FinalAmount = 0;
 
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Apply nhiều voucher cho đơn hàng
+    /// Voucher được áp dụng theo thứ tự trong list
+    /// Mỗi voucher tiếp theo sẽ tính trên số tiền sau khi đã giảm
+    /// </summary>
+    private async Task<decimal> ApplyMultipleVouchersAsync(
+        Order order, 
+        List<int> voucherIds, 
+        int userId,
+        List<Models.Voucher> appliedVouchersForRollback)
+    {
+        decimal totalDiscount = 0;
+        decimal remainingAmount = order.SubTotal;
+        int applyOrder = 0;
+
+        foreach (var voucherId in voucherIds.Distinct()) // Loại bỏ duplicate
+        {
+            if (remainingAmount <= 0) break; // Không còn tiền để giảm
+
+            // Validate voucher
+            var voucher = await _voucherService.GetByIdAsync(voucherId);
+            if (voucher == null)
+            {
+                // Skip voucher không tồn tại, có thể log warning
+                continue;
+            }
+
+            var validationResult = await _voucherService.ValidateVoucherAsync(
+                voucher.Code, userId, order.SubTotal);
+
+            if (!validationResult.IsValid)
+            {
+                // Skip voucher không hợp lệ, có thể log warning
+                continue;
+            }
+
+            // Apply voucher (atomic update usage count)
+            var appliedVoucher = await _voucherService.ApplyVoucherAsync(voucherId, userId);
+            if (appliedVoucher == null)
+            {
+                // Voucher hết lượt, skip
+                continue;
+            }
+
+            // Track for rollback
+            appliedVouchersForRollback.Add(appliedVoucher);
+
+            // Tính discount dựa trên số tiền còn lại
+            var discountAmount = _voucherService.CalculateDiscount(appliedVoucher, remainingAmount);
+
+            // Đảm bảo không giảm quá số tiền còn lại
+            if (discountAmount > remainingAmount)
+                discountAmount = remainingAmount;
+
+            // Lưu thông tin voucher đã áp dụng vào OrderVoucher
+            var orderVoucher = new OrderVoucher
+            {
+                OrderId = order.Id,
+                VoucherId = appliedVoucher.Id,
+                VoucherCode = appliedVoucher.Code,
+                DiscountType = appliedVoucher.DiscountType,
+                DiscountValue = appliedVoucher.DiscountValue,
+                DiscountAmount = discountAmount,
+                ApplyOrder = applyOrder++,
+                AppliedAt = GetVietnamTime()
+            };
+
+            _context.OrderVouchers.Add(orderVoucher);
+            await _context.SaveChangesAsync();
+
+            totalDiscount += discountAmount;
+            remainingAmount -= discountAmount;
+
+            // Backward compatibility: Set VoucherId cho voucher đầu tiên
+            if (order.VoucherId == null)
+            {
+                order.VoucherId = appliedVoucher.Id;
+            }
+        }
+
+        return totalDiscount;
     }
 
     private async Task<List<string>> ValidateOrderBeforeCheckoutAsync(Order order)
@@ -681,7 +865,7 @@ public class OrderService : IOrderService
 
     private static OrderResponse MapToResponse(Order order)
     {
-        return new OrderResponse
+        var response = new OrderResponse
         {
             Id = order.Id,
             OrderCode = order.OrderCode,
@@ -704,6 +888,39 @@ public class OrderService : IOrderService
             CancelReason = order.CancelReason,
             Items = order.OrderItems.Select(MapToItemResponse).ToList()
         };
+
+        // Map voucher info nếu có (backward compatibility)
+        if (order.Voucher != null)
+        {
+            response.VoucherInfo = new VoucherInfoResponse
+            {
+                Id = order.Voucher.Id,
+                Code = order.Voucher.Code,
+                Description = order.Voucher.Description,
+                DiscountType = order.Voucher.DiscountType.ToString(),
+                DiscountValue = order.Voucher.DiscountValue,
+                MaxDiscountAmount = order.Voucher.MaxDiscountAmount
+            };
+        }
+
+        // Map danh sách voucher đã áp dụng
+        if (order.OrderVouchers != null && order.OrderVouchers.Any())
+        {
+            response.AppliedVouchers = order.OrderVouchers
+                .OrderBy(ov => ov.ApplyOrder)
+                .Select(ov => new AppliedVoucherResponse
+                {
+                    VoucherId = ov.VoucherId,
+                    VoucherCode = ov.VoucherCode,
+                    DiscountType = ov.DiscountType.ToString(),
+                    DiscountValue = ov.DiscountValue,
+                    DiscountAmount = ov.DiscountAmount,
+                    ApplyOrder = ov.ApplyOrder
+                })
+                .ToList();
+        }
+
+        return response;
     }
 
     private static OrderItemResponse MapToItemResponse(OrderItem item)

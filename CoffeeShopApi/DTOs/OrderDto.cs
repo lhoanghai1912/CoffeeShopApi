@@ -18,6 +18,12 @@ public class CreateOrderRequest
     public int? UserAddressId { get; set; }
 
     public string? Note { get; set; }
+
+    /// <summary>
+    /// Danh sách các Voucher ID cần áp dụng (hỗ trợ nhiều voucher)
+    /// </summary>
+    public List<int>? VoucherIds { get; set; }
+
     public List<CreateOrderItemRequest>? Items { get; set; }
 }
 
@@ -76,14 +82,105 @@ public class CheckoutOrderRequest
     public int? UserAddressId { get; set; }
 
     /// <summary>
-    /// Voucher áp dụng (optional)
+    /// Voucher ID áp dụng (optional) - ưu tiên nếu có cả VoucherId và VoucherCode
     /// </summary>
     public int? VoucherId { get; set; }
+
+    /// <summary>
+    /// Mã voucher áp dụng (optional) - sử dụng nếu không có VoucherId
+    /// </summary>
+    public string? VoucherCode { get; set; }
 
     /// <summary>
     /// Ghi chú đơn hàng (optional)
     /// </summary>
     public string? Note { get; set; }
+}
+
+/// <summary>
+/// Request preview voucher cho đơn hàng (trước khi checkout)
+/// </summary>
+public class PreviewVoucherRequest
+{
+    /// <summary>
+    /// Mã voucher cần kiểm tra
+    /// </summary>
+    public string VoucherCode { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Response preview voucher
+/// </summary>
+public class VoucherPreviewResponse
+{
+    public bool IsValid { get; set; }
+    public string? ErrorMessage { get; set; }
+
+    /// <summary>
+    /// Thông tin voucher nếu hợp lệ
+    /// </summary>
+    public VoucherInfoResponse? Voucher { get; set; }
+
+    /// <summary>
+    /// Số tiền giảm giá
+    /// </summary>
+    public decimal DiscountAmount { get; set; }
+
+    /// <summary>
+    /// Tổng tiền hàng (SubTotal)
+    /// </summary>
+    public decimal SubTotal { get; set; }
+
+    /// <summary>
+    /// Tổng thanh toán sau giảm giá
+    /// </summary>
+    public decimal FinalAmount { get; set; }
+}
+
+/// <summary>
+/// Thông tin voucher trong preview
+/// </summary>
+public class VoucherInfoResponse
+{
+    public int Id { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string DiscountType { get; set; } = string.Empty;
+    public decimal DiscountValue { get; set; }
+    public decimal? MaxDiscountAmount { get; set; }
+}
+
+/// <summary>
+/// Thông tin voucher đã áp dụng trong đơn hàng
+/// </summary>
+public class AppliedVoucherResponse
+{
+    public int VoucherId { get; set; }
+
+    /// <summary>
+    /// [SNAPSHOT] Mã voucher tại thời điểm áp dụng
+    /// </summary>
+    public string VoucherCode { get; set; } = string.Empty;
+
+    /// <summary>
+    /// [SNAPSHOT] Loại giảm giá
+    /// </summary>
+    public string DiscountType { get; set; } = string.Empty;
+
+    /// <summary>
+    /// [SNAPSHOT] Giá trị giảm giá (% hoặc số tiền)
+    /// </summary>
+    public decimal DiscountValue { get; set; }
+
+    /// <summary>
+    /// Số tiền thực tế được giảm từ voucher này
+    /// </summary>
+    public decimal DiscountAmount { get; set; }
+
+    /// <summary>
+    /// Thứ tự áp dụng
+    /// </summary>
+    public int ApplyOrder { get; set; }
 }
 
 /// <summary>
@@ -113,24 +210,39 @@ public class OrderResponse
     public decimal DiscountAmount { get; set; }
     public decimal ShippingFee { get; set; }
     public decimal FinalAmount { get; set; }
+
+    /// <summary>
+    /// [DEPRECATED] Dùng AppliedVouchers thay thế
+    /// </summary>
     public int? VoucherId { get; set; }
+
+    /// <summary>
+    /// [DEPRECATED] Dùng AppliedVouchers thay thế
+    /// </summary>
+    public VoucherInfoResponse? VoucherInfo { get; set; }
+
+    /// <summary>
+    /// Danh sách các voucher đã áp dụng cho đơn hàng
+    /// </summary>
+    public List<AppliedVoucherResponse> AppliedVouchers { get; set; } = new();
+
     public string? Note { get; set; }
-    
+
     /// <summary>
     /// [SNAPSHOT] Tên người nhận hàng
     /// </summary>
     public string? RecipientName { get; set; }
-    
+
     /// <summary>
     /// [SNAPSHOT] Địa chỉ giao hàng
     /// </summary>
     public string? ShippingAddress { get; set; }
-    
+
     /// <summary>
     /// [SNAPSHOT] Số điện thoại nhận hàng
     /// </summary>
     public string? PhoneNumber { get; set; }
-    
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public DateTime? PaidAt { get; set; }
