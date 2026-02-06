@@ -15,7 +15,7 @@ public class OptionItemConfiguration : IEntityTypeConfiguration<OptionItem>
             .HasMaxLength(100);
 
         builder.Property(oi => oi.PriceAdjustment)
-            .HasColumnType("decimal(18,0)")
+            .HasColumnType("decimal(18,2)")
             .IsRequired();
 
         builder.HasOne(oi => oi.OptionGroup)
@@ -24,8 +24,5 @@ public class OptionItemConfiguration : IEntityTypeConfiguration<OptionItem>
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasIndex(oi => oi.OptionGroupId);
-
-        builder.Property(oi => oi.FatherId)
-            .IsRequired();
     }
 }

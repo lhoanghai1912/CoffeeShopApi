@@ -22,15 +22,13 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(p => p.Description);
 
         builder.Property(p => p.ImageUrl);
-        
+
         builder.HasOne(p => p.Category)
             .WithMany(c => c.Products)
             .HasForeignKey(d => d.CategoryId)
             .OnDelete(DeleteBehavior.Cascade);
-        
-        builder.HasMany(p => p.OptionGroups)
-            .WithOne(og => og.Product)
-            .HasForeignKey(og => og.ProductId)
-            .OnDelete(DeleteBehavior.Cascade);
+
+        // Relationship với OptionGroup qua bảng mapping ProductOptionGroup
+        // Được cấu hình trong ProductOptionGroupConfiguration
     }
 }

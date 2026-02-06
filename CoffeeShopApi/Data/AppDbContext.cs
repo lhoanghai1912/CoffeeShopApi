@@ -18,9 +18,10 @@ public class AppDbContext : DbContext
     public DbSet<Product> Products { get; set; }
     public DbSet<Category> Categories { get; set; }
 
-    // Option System (thay the ProductDetail)
+    // Option System (template-based, reusable)
     public DbSet<OptionGroup> OptionGroups { get; set; }
     public DbSet<OptionItem> OptionItems { get; set; }
+    public DbSet<ProductOptionGroup> ProductOptionGroups { get; set; }
 
     // Order System
     public DbSet<Order> Orders { get; set; }
@@ -89,6 +90,7 @@ public class AppDbContext : DbContext
         modelBuilder.ApplyConfiguration(new RolePermissionConfiguration());
         modelBuilder.ApplyConfiguration(new OptionGroupConfiguration());
         modelBuilder.ApplyConfiguration(new OptionItemConfiguration());
+        modelBuilder.ApplyConfiguration(new ProductOptionGroupConfiguration());
         
         // Order configurations
         modelBuilder.ApplyConfiguration(new OrderConfiguration());

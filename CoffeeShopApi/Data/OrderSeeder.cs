@@ -74,9 +74,12 @@ public static class OrderSeeder
             };
 
             // ✅ Add options với tên tiếng Việt (Kích cỡ, Mức đường, Mức đá, Topping)
-            var optionGroups = await context.OptionGroups
-                .Include(og => og.OptionItems)
-                .Where(og => og.ProductId == product.Id)
+            var optionGroups = await context.ProductOptionGroups
+                .Where(pog => pog.ProductId == product.Id)
+                .Include(pog => pog.OptionGroup)
+                    .ThenInclude(og => og!.OptionItems)
+                .OrderBy(pog => pog.DisplayOrder)
+                .Select(pog => pog.OptionGroup!)
                 .ToListAsync();
 
             foreach (var optionGroup in optionGroups)
@@ -180,9 +183,12 @@ public static class OrderSeeder
             };
 
             // ✅ Add options cho additional orders (tương tự logic trên)
-            var optionGroupsForItem = await context.OptionGroups
-                .Include(og => og.OptionItems)
-                .Where(og => og.ProductId == product.Id)
+            var optionGroupsForItem = await context.ProductOptionGroups
+                .Where(pog => pog.ProductId == product.Id)
+                .Include(pog => pog.OptionGroup)
+                    .ThenInclude(og => og!.OptionItems)
+                .OrderBy(pog => pog.DisplayOrder)
+                .Select(pog => pog.OptionGroup!)
                 .ToListAsync();
 
             foreach (var optionGroup in optionGroupsForItem)

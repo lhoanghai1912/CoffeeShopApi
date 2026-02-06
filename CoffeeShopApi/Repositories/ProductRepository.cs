@@ -17,8 +17,9 @@ public class ProductRepository : Repository<Product>, IProductRepository
     {
         return await _dbSet
             .Include(p => p.Category)
-            .Include(p => p.OptionGroups)
-                .ThenInclude(og => og.OptionItems)
+            .Include(p => p.ProductOptionGroups.OrderBy(pog => pog.DisplayOrder))
+                .ThenInclude(pog => pog.OptionGroup)
+                    .ThenInclude(og => og!.OptionItems.OrderBy(oi => oi.DisplayOrder))
             .FirstOrDefaultAsync(p => p.Id == id);
     }
 
@@ -26,8 +27,9 @@ public class ProductRepository : Repository<Product>, IProductRepository
     {
         return await _dbSet
             .Include(p => p.Category)
-            .Include(p => p.OptionGroups)
-                .ThenInclude(og => og.OptionItems)
+            .Include(p => p.ProductOptionGroups.OrderBy(pog => pog.DisplayOrder))
+                .ThenInclude(pog => pog.OptionGroup)
+                    .ThenInclude(og => og!.OptionItems.OrderBy(oi => oi.DisplayOrder))
             .ToListAsync();
     }
 
@@ -35,8 +37,9 @@ public class ProductRepository : Repository<Product>, IProductRepository
     {
         return await _dbSet
             .Include(p => p.Category)
-            .Include(p => p.OptionGroups)
-                .ThenInclude(og => og.OptionItems)
+            .Include(p => p.ProductOptionGroups.OrderBy(pog => pog.DisplayOrder))
+                .ThenInclude(pog => pog.OptionGroup)
+                    .ThenInclude(og => og!.OptionItems.OrderBy(oi => oi.DisplayOrder))
             .Where(p => p.CategoryId == categoryId)
             .ToListAsync();
     }
@@ -73,8 +76,9 @@ public class ProductRepository : Repository<Product>, IProductRepository
         var items = await query
             .ApplyPaging(gridifyQuery)
             .Include(p => p.Category)
-            .Include(p => p.OptionGroups)
-                .ThenInclude(og => og.OptionItems)
+            .Include(p => p.ProductOptionGroups.OrderBy(pog => pog.DisplayOrder))
+                .ThenInclude(pog => pog.OptionGroup)
+                    .ThenInclude(og => og!.OptionItems.OrderBy(oi => oi.DisplayOrder))
             .AsNoTracking()
             .ToListAsync();
 
@@ -96,21 +100,29 @@ public class ProductRepository : Repository<Product>, IProductRepository
 
     #region UPDATE Method
 
-    public async Task<bool> UpdateWithOptionsAsync(Product product, ICollection<OptionGroup>? newOptionGroups)
+    /// <summary>
+    /// C?p nh?t product và mapping v?i OptionGroup templates
+    /// </summary>
+    public async Task<bool> UpdateWithOptionsAsync(Product product, ICollection<int>? optionGroupIds)
     {
-        // Xóa OptionGroups c?
-        if (product.OptionGroups.Any())
+        // Xóa mappings c?
+        if (product.ProductOptionGroups.Any())
         {
-            _context.OptionGroups.RemoveRange(product.OptionGroups);
+            _context.ProductOptionGroups.RemoveRange(product.ProductOptionGroups);
         }
 
-        // Thêm OptionGroups m?i
-        if (newOptionGroups != null && newOptionGroups.Any())
+        // Thêm mappings m?i
+        if (optionGroupIds != null && optionGroupIds.Any())
         {
-            foreach (var og in newOptionGroups)
+            int displayOrder = 1;
+            foreach (var groupId in optionGroupIds)
             {
-                og.ProductId = product.Id;
-                product.OptionGroups.Add(og);
+                product.ProductOptionGroups.Add(new ProductOptionGroup
+                {
+                    ProductId = product.Id,
+                    OptionGroupId = groupId,
+                    DisplayOrder = displayOrder++
+                });
             }
         }
 
@@ -129,10 +141,10 @@ public class ProductRepository : Repository<Product>, IProductRepository
         var product = await GetByIdWithDetailsAsync(id);
         if (product == null) return false;
 
-        // Xóa OptionGroups (cascade s? xóa OptionItems)
-        if (product.OptionGroups.Any())
+        // Xóa ProductOptionGroups mappings (cascade s? lo)
+        if (product.ProductOptionGroups.Any())
         {
-            _context.OptionGroups.RemoveRange(product.OptionGroups);
+            _context.ProductOptionGroups.RemoveRange(product.ProductOptionGroups);
         }
 
         _dbSet.Remove(product);

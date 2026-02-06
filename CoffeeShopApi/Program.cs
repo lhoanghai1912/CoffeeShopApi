@@ -180,17 +180,30 @@ using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     var context = services.GetRequiredService<AppDbContext>();
-    // Apply any pending migrations and initialize DB data
+
+    // ⚠️ CHÚ Ý: Không tự động migrate khi start app
+    // Chỉ apply migrations thủ công bằng: dotnet ef database update
+    // Lý do: Migration có thể xóa data nếu schema thay đổi lớn
+
+    // Apply any pending migrations - CHỈ BẬT KHI CẦN
+    // try
+    // {
+    //     context.Database.Migrate();
+    // }
+    // catch
+    // {
+    //     // Ignore migration errors in development here
+    // }
+
+    // Chỉ seed data nếu DB đã được setup
     try
     {
-        context.Database.Migrate();
+        await DbInitializer.InitializeAsync(context);
     }
-    catch
+    catch (Exception ex)
     {
-        // Ignore migration errors in development here
+        Console.WriteLine($"❌ Error initializing database: {ex.Message}");
     }
-
-    await DbInitializer.InitializeAsync(context);
 }
 
 app.Run();

@@ -73,10 +73,14 @@ namespace CoffeeShopApi.Migrations
                     b.Property<bool>("AllowMultiple")
                         .HasColumnType("bit");
 
-                    b.Property<int>("DisplayOrder")
+                    b.Property<int?>("DependsOnOptionItemId")
                         .HasColumnType("int");
 
-                    b.Property<int>("FatherId")
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("DisplayOrder")
                         .HasColumnType("int");
 
                     b.Property<bool>("IsRequired")
@@ -87,12 +91,9 @@ namespace CoffeeShopApi.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<int>("ProductId")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("ProductId");
+                    b.HasIndex("Name");
 
                     b.ToTable("OptionGroups");
                 });
@@ -108,9 +109,6 @@ namespace CoffeeShopApi.Migrations
                     b.Property<int>("DisplayOrder")
                         .HasColumnType("int");
 
-                    b.Property<int>("FatherId")
-                        .HasColumnType("int");
-
                     b.Property<bool>("IsDefault")
                         .HasColumnType("bit");
 
@@ -123,7 +121,7 @@ namespace CoffeeShopApi.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal>("PriceAdjustment")
-                        .HasColumnType("decimal(18,0)");
+                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
 
@@ -598,6 +596,35 @@ namespace CoffeeShopApi.Migrations
                     b.HasIndex("CategoryId");
 
                     b.ToTable("Products");
+                });
+
+            modelBuilder.Entity("CoffeeShopApi.Models.ProductOptionGroup", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int>("OptionGroupId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OptionGroupId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("ProductId", "OptionGroupId")
+                        .IsUnique();
+
+                    b.ToTable("ProductOptionGroups");
                 });
 
             modelBuilder.Entity("CoffeeShopApi.Models.Role", b =>
@@ -1154,17 +1181,6 @@ namespace CoffeeShopApi.Migrations
                     b.ToTable("VoucherUsages");
                 });
 
-            modelBuilder.Entity("CoffeeShopApi.Models.OptionGroup", b =>
-                {
-                    b.HasOne("CoffeeShopApi.Models.Product", "Product")
-                        .WithMany("OptionGroups")
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Product");
-                });
-
             modelBuilder.Entity("CoffeeShopApi.Models.OptionItem", b =>
                 {
                     b.HasOne("CoffeeShopApi.Models.OptionGroup", "OptionGroup")
@@ -1268,6 +1284,25 @@ namespace CoffeeShopApi.Migrations
                     b.Navigation("Category");
                 });
 
+            modelBuilder.Entity("CoffeeShopApi.Models.ProductOptionGroup", b =>
+                {
+                    b.HasOne("CoffeeShopApi.Models.OptionGroup", "OptionGroup")
+                        .WithMany("ProductMappings")
+                        .HasForeignKey("OptionGroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CoffeeShopApi.Models.Product", "Product")
+                        .WithMany("ProductOptionGroups")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("OptionGroup");
+
+                    b.Navigation("Product");
+                });
+
             modelBuilder.Entity("CoffeeShopApi.Models.RolePermission", b =>
                 {
                     b.HasOne("CoffeeShopApi.Models.Permission", "Permission")
@@ -1354,6 +1389,8 @@ namespace CoffeeShopApi.Migrations
             modelBuilder.Entity("CoffeeShopApi.Models.OptionGroup", b =>
                 {
                     b.Navigation("OptionItems");
+
+                    b.Navigation("ProductMappings");
                 });
 
             modelBuilder.Entity("CoffeeShopApi.Models.Order", b =>
@@ -1375,7 +1412,7 @@ namespace CoffeeShopApi.Migrations
 
             modelBuilder.Entity("CoffeeShopApi.Models.Product", b =>
                 {
-                    b.Navigation("OptionGroups");
+                    b.Navigation("ProductOptionGroups");
                 });
 
             modelBuilder.Entity("CoffeeShopApi.Models.Role", b =>

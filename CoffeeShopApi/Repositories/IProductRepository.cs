@@ -13,10 +13,10 @@ public interface IProductRepository : IRepository<Product>
     // CREATE method
     Task<Product> CreateWithOptionsAsync(Product product);
     
-    // UPDATE method
-    Task<bool> UpdateWithOptionsAsync(Product product, ICollection<OptionGroup>? newOptionGroups);
-    
-    // DELETE method (override ?? xóa c? OptionGroups)
+    // UPDATE method - nh?n danh sách OptionGroup template IDs ?? mapping
+    Task<bool> UpdateWithOptionsAsync(Product product, ICollection<int>? optionGroupIds);
+
+    // DELETE method (xóa c? ProductOptionGroups mappings)
     Task<bool> DeleteWithOptionsAsync(int id);
 }
 

@@ -14,6 +14,100 @@ public static class ProductSeeder
             return;
         }
 
+        // ========== BƯỚC 1: TẠO TEMPLATE OPTION GROUPS (1 LẦN DUY NHẤT) ==========
+        Console.WriteLine("🔧 Creating OptionGroup templates...");
+
+        // Template 1: Kích cỡ (áp dụng cho TẤT CẢ sản phẩm)
+        var templateSize = new OptionGroup
+        {
+            Name = "Kích cỡ",
+            Description = "Kích cỡ sản phẩm",
+            IsRequired = true,
+            AllowMultiple = false,
+            DisplayOrder = 1
+        };
+        context.OptionGroups.Add(templateSize);
+        await context.SaveChangesAsync();
+
+        context.OptionItems.AddRange(
+            new OptionItem { OptionGroupId = templateSize.Id, Name = "Nhỏ (S)", PriceAdjustment = 0, IsDefault = true, DisplayOrder = 1 },
+            new OptionItem { OptionGroupId = templateSize.Id, Name = "Vừa (M)", PriceAdjustment = 5000, DisplayOrder = 2 },
+            new OptionItem { OptionGroupId = templateSize.Id, Name = "Lớn (L)", PriceAdjustment = 10000, DisplayOrder = 3 }
+        );
+        await context.SaveChangesAsync();
+        Console.WriteLine($"  ✓ Template 'Kích cỡ' (ID: {templateSize.Id}) với 3 items");
+
+        // Template 2: Mức đường
+        var templateSugar = new OptionGroup
+        {
+            Name = "Mức đường",
+            Description = "Độ ngọt của đồ uống",
+            IsRequired = true,
+            AllowMultiple = false,
+            DisplayOrder = 2
+        };
+        context.OptionGroups.Add(templateSugar);
+        await context.SaveChangesAsync();
+
+        context.OptionItems.AddRange(
+            new OptionItem { OptionGroupId = templateSugar.Id, Name = "0%", PriceAdjustment = 0, DisplayOrder = 1 },
+            new OptionItem { OptionGroupId = templateSugar.Id, Name = "30%", PriceAdjustment = 0, DisplayOrder = 2 },
+            new OptionItem { OptionGroupId = templateSugar.Id, Name = "50%", PriceAdjustment = 0, DisplayOrder = 3 },
+            new OptionItem { OptionGroupId = templateSugar.Id, Name = "70%", PriceAdjustment = 0, IsDefault = true, DisplayOrder = 4 },
+            new OptionItem { OptionGroupId = templateSugar.Id, Name = "100%", PriceAdjustment = 0, DisplayOrder = 5 }
+        );
+        await context.SaveChangesAsync();
+        Console.WriteLine($"  ✓ Template 'Mức đường' (ID: {templateSugar.Id}) với 5 items");
+
+        // Template 3: Mức đá
+        var templateIce = new OptionGroup
+        {
+            Name = "Mức đá",
+            Description = "Lượng đá trong đồ uống",
+            IsRequired = true,
+            AllowMultiple = false,
+            DisplayOrder = 3
+        };
+        context.OptionGroups.Add(templateIce);
+        await context.SaveChangesAsync();
+
+        context.OptionItems.AddRange(
+            new OptionItem { OptionGroupId = templateIce.Id, Name = "0%", PriceAdjustment = 0, DisplayOrder = 1 },
+            new OptionItem { OptionGroupId = templateIce.Id, Name = "30%", PriceAdjustment = 0, DisplayOrder = 2 },
+            new OptionItem { OptionGroupId = templateIce.Id, Name = "50%", PriceAdjustment = 0, DisplayOrder = 3 },
+            new OptionItem { OptionGroupId = templateIce.Id, Name = "70%", PriceAdjustment = 0, IsDefault = true, DisplayOrder = 4 },
+            new OptionItem { OptionGroupId = templateIce.Id, Name = "100%", PriceAdjustment = 0, DisplayOrder = 5 }
+        );
+        await context.SaveChangesAsync();
+        Console.WriteLine($"  ✓ Template 'Mức đá' (ID: {templateIce.Id}) với 5 items");
+
+        // Template 4: Topping
+        var templateTopping = new OptionGroup
+        {
+            Name = "Topping",
+            Description = "Topping thêm cho đồ uống",
+            IsRequired = false,
+            AllowMultiple = true,
+            DisplayOrder = 4
+        };
+        context.OptionGroups.Add(templateTopping);
+        await context.SaveChangesAsync();
+
+        context.OptionItems.AddRange(
+            new OptionItem { OptionGroupId = templateTopping.Id, Name = "Trân châu đen", PriceAdjustment = 10000, DisplayOrder = 1 },
+            new OptionItem { OptionGroupId = templateTopping.Id, Name = "Trân châu trắng", PriceAdjustment = 10000, DisplayOrder = 2 },
+            new OptionItem { OptionGroupId = templateTopping.Id, Name = "Thạch dừa", PriceAdjustment = 8000, DisplayOrder = 3 },
+            new OptionItem { OptionGroupId = templateTopping.Id, Name = "Pudding", PriceAdjustment = 12000, DisplayOrder = 4 },
+            new OptionItem { OptionGroupId = templateTopping.Id, Name = "Kem cheese", PriceAdjustment = 15000, DisplayOrder = 5 }
+        );
+        await context.SaveChangesAsync();
+        Console.WriteLine($"  ✓ Template 'Topping' (ID: {templateTopping.Id}) với 5 items");
+
+        Console.WriteLine($"📦 Tổng cộng: 4 OptionGroup templates, 18 OptionItems");
+
+        // ========== BƯỚC 2: TẠO PRODUCTS ==========
+        Console.WriteLine("\n🍵 Creating products...");
+
         // Lấy danh sách file ảnh thực tế trong wwwroot/images
         var imagesDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images");
         if (!Directory.Exists(imagesDir))
@@ -21,60 +115,44 @@ public static class ProductSeeder
             Directory.CreateDirectory(imagesDir);
         }
 
-        // Lưu cả tên file gốc để mapping chính xác
         var imageFilesList = Directory.GetFiles(imagesDir)
             .Select(f => Path.GetFileName(f) ?? "")
             .ToList();
 
-        // Tạo dictionary lowercase -> original name để tìm kiếm
         var imageFilesLookup = imageFilesList
             .GroupBy(f => f.ToLowerInvariant())
             .ToDictionary(g => g.Key, g => g.First());
 
-        /// <summary>
-        /// Chuyển tên sản phẩm tiếng Việt thành tên file ảnh (không dấu, viết thường)
-        /// </summary>
         string RemoveVietnameseDiacritics(string text)
         {
             if (string.IsNullOrEmpty(text)) return text;
-
-            // Normalize để tách dấu khỏi ký tự gốc
             string normalized = text.Normalize(NormalizationForm.FormD);
-
             var sb = new StringBuilder();
             foreach (char c in normalized)
             {
                 var unicodeCategory = CharUnicodeInfo.GetUnicodeCategory(c);
-                // Bỏ qua các ký tự dấu (NonSpacingMark)
                 if (unicodeCategory != UnicodeCategory.NonSpacingMark)
                 {
                     sb.Append(c);
                 }
             }
-
-            // Xử lý riêng ký tự đ/Đ (không bị tách bởi Normalize)
             return sb.ToString()
                 .Normalize(NormalizationForm.FormC)
                 .Replace("đ", "d")
                 .Replace("Đ", "D");
         }
 
-        /// <summary>
-        /// Tìm file ảnh phù hợp với tên sản phẩm (hỗ trợ nhiều convention)
-        /// </summary>
         string? FindImageFile(string productName)
         {
-            // Tạo tên file chuẩn: loại bỏ dấu tiếng Việt và khoảng trắng
             string baseName = RemoveVietnameseDiacritics(productName)
                 .Replace(" ", "")
                 .Replace("-", "");
 
-            // Thử tìm theo các convention khác nhau
             var possibleNames = new[]
             {
-                baseName.ToLowerInvariant() + ".jpg",           // caphesuada.jpg
-                baseName + ".jpg",                               // CaPheSuaDa.jpg (giữ nguyên case)
-                productName.Replace(" ", "") + ".jpg",           // CàPhêSữaĐá.jpg (có dấu)
+                baseName.ToLowerInvariant() + ".jpg",
+                baseName + ".jpg",
+                productName.Replace(" ", "") + ".jpg",
             };
 
             foreach (var name in possibleNames)
@@ -85,13 +163,12 @@ public static class ProductSeeder
                     return actualFileName;
                 }
             }
-
             return null;
         }
 
         var products = new List<Product>
         {
-            // Coffee
+            // Coffee (CategoryId = 1)
             new Product { Name = "Cà Phê Đen Đá", Description = "Cà phê Robusta đậm đà, thơm nồng", BasePrice = 25000, CategoryId = 1 },
             new Product { Name = "Cà Phê Sữa Đá", Description = "Hương vị cà phê Việt Nam truyền thống", BasePrice = 29000, CategoryId = 1 },
             new Product { Name = "Bạc Xỉu", Description = "Sữa nóng pha cà phê, vị ngọt nhẹ", BasePrice = 32000, CategoryId = 1 },
@@ -103,7 +180,7 @@ public static class ProductSeeder
             new Product { Name = "Flat White", Description = "Espresso đậm đà với lớp sữa mịn", BasePrice = 46000, CategoryId = 1 },
             new Product { Name = "Cà Phê Cốt Dừa", Description = "Cà phê kết hợp cốt dừa béo ngậy", BasePrice = 38000, CategoryId = 1 },
 
-            // Tea
+            // Tea (CategoryId = 2)
             new Product { Name = "Trà Đào Cam Sả", Description = "Trà đen thơm lừng với đào và cam sả", BasePrice = 45000, CategoryId = 2 },
             new Product { Name = "Trà Sen Vàng", Description = "Trà ô long thanh mát với hạt sen", BasePrice = 45000, CategoryId = 2 },
             new Product { Name = "Trà Vải Hoa Hồng", Description = "Vị ngọt vải thiều hòa quyện hoa hồng", BasePrice = 42000, CategoryId = 2 },
@@ -115,7 +192,7 @@ public static class ProductSeeder
             new Product { Name = "Trà Dâu", Description = "Trà xanh kết hợp dâu tây tươi", BasePrice = 43000, CategoryId = 2 },
             new Product { Name = "Trà Atiso Mật Ong", Description = "Trà atiso thanh nhiệt với mật ong", BasePrice = 36000, CategoryId = 2 },
 
-            // Food
+            // Food (CategoryId = 3) - Chỉ có Size, không có Sugar/Ice/Topping
             new Product { Name = "Bánh Croissant Bơ", Description = "Bánh sừng bò ngàn lớp giòn rụm", BasePrice = 35000, CategoryId = 3 },
             new Product { Name = "Tiramisu", Description = "Bánh ngọt vị cà phê kem mascarpone", BasePrice = 45000, CategoryId = 3 },
             new Product { Name = "Cheesecake Chanh Dây", Description = "Bánh phô mai chua ngọt hài hòa", BasePrice = 48000, CategoryId = 3 },
@@ -123,7 +200,7 @@ public static class ProductSeeder
             new Product { Name = "Bánh Mì Que Pate", Description = "Bánh mì que giòn rụm với pate thơm", BasePrice = 15000, CategoryId = 3 },
             new Product { Name = "Donut Sô-cô-la", Description = "Bánh vòng chiên phủ sô-cô-la", BasePrice = 25000, CategoryId = 3 },
 
-            // Freeze
+            // Freeze (CategoryId = 4)
             new Product { Name = "Matcha Đá Xay", Description = "Bột trà xanh xay cùng đá và sữa", BasePrice = 55000, CategoryId = 4 },
             new Product { Name = "Cookie Đá Xay", Description = "Bánh Oreo xay mịn với kem tươi", BasePrice = 55000, CategoryId = 4 },
             new Product { Name = "Caramel Frappuccino", Description = "Cà phê xay đá với sốt caramel", BasePrice = 58000, CategoryId = 4 },
@@ -137,76 +214,71 @@ public static class ProductSeeder
             if (foundFile != null)
             {
                 product.ImageUrl = $"/images/{foundFile}";
-                Console.WriteLine($"✓ {product.Name} => /images/{foundFile}");
+                Console.WriteLine($"  ✓ {product.Name} => /images/{foundFile}");
             }
             else
             {
                 product.ImageUrl = "/images/placeholder.jpg";
-                Console.WriteLine($"✗ {product.Name} => placeholder (no matching image)");
+                Console.WriteLine($"  ✗ {product.Name} => placeholder (no matching image)");
             }
         }
 
         context.Products.AddRange(products);
         await context.SaveChangesAsync();
+        Console.WriteLine($"\n📦 Created {products.Count} products");
+
+        // ========== BƯỚC 3: MAP PRODUCTS VỚI TEMPLATE OPTION GROUPS ==========
+        Console.WriteLine("\n🔗 Mapping products to OptionGroup templates...");
 
         foreach (var product in products)
         {
-            // Luôn có OptionGroup Size
-            var sizeGroup = new OptionGroup { ProductId = product.Id, Name = "Kích cỡ", IsRequired = true, AllowMultiple = false, DisplayOrder = 1 };
-            context.OptionGroups.Add(sizeGroup);
-            await context.SaveChangesAsync();
+            // Tất cả products đều có Size
+            context.ProductOptionGroups.Add(new ProductOptionGroup
+            {
+                ProductId = product.Id,
+                OptionGroupId = templateSize.Id,
+                DisplayOrder = 1
+            });
 
-            context.OptionItems.AddRange(
-                new OptionItem { OptionGroupId = sizeGroup.Id, Name = "Nhỏ (S)", PriceAdjustment = 0, IsDefault = true, DisplayOrder = 1 },
-                new OptionItem { OptionGroupId = sizeGroup.Id, Name = "Vừa (M)", PriceAdjustment = 5000, DisplayOrder = 2 },
-                new OptionItem { OptionGroupId = sizeGroup.Id, Name = "Lớn (L)", PriceAdjustment = 10000, DisplayOrder = 3 }
-            );
-
-            // Chỉ thêm Mức đường và Topping nếu không phải bánh ngọt (CategoryId != 3)
+            // Chỉ products không phải Food (CategoryId != 3) mới có Sugar, Ice, Topping
             if (product.CategoryId != 3)
             {
-                var sugarGroup = new OptionGroup { ProductId = product.Id, Name = "Mức đường", IsRequired = true, AllowMultiple = false, DisplayOrder = 2 };
-                context.OptionGroups.Add(sugarGroup);
-                await context.SaveChangesAsync();
+                context.ProductOptionGroups.Add(new ProductOptionGroup
+                {
+                    ProductId = product.Id,
+                    OptionGroupId = templateSugar.Id,
+                    DisplayOrder = 2
+                });
 
-                context.OptionItems.AddRange(
-                    new OptionItem { OptionGroupId = sugarGroup.Id, Name = "0%", PriceAdjustment = 0, DisplayOrder = 1 },
-                    new OptionItem { OptionGroupId = sugarGroup.Id, Name = "30%", PriceAdjustment = 0, DisplayOrder = 2 },
-                    new OptionItem { OptionGroupId = sugarGroup.Id, Name = "50%", PriceAdjustment = 0, DisplayOrder = 3 },
-                    new OptionItem { OptionGroupId = sugarGroup.Id, Name = "70%", PriceAdjustment = 0, IsDefault = true, DisplayOrder = 4 },
-                    new OptionItem { OptionGroupId = sugarGroup.Id, Name = "100%", PriceAdjustment = 0, DisplayOrder = 5 }
-                );
+                context.ProductOptionGroups.Add(new ProductOptionGroup
+                {
+                    ProductId = product.Id,
+                    OptionGroupId = templateIce.Id,
+                    DisplayOrder = 3
+                });
 
-                var iceGroup = new OptionGroup { ProductId = product.Id, Name = "Mức đá", IsRequired = true, AllowMultiple = false, DisplayOrder = 3 };
-                context.OptionGroups.Add(iceGroup);
-                await context.SaveChangesAsync();
-
-                context.OptionItems.AddRange(
-                    new OptionItem { OptionGroupId = iceGroup.Id, Name = "0%", PriceAdjustment = 0, DisplayOrder = 1 },
-                    new OptionItem { OptionGroupId = iceGroup.Id, Name = "30%", PriceAdjustment = 0, DisplayOrder = 2 },
-                    new OptionItem { OptionGroupId = iceGroup.Id, Name = "50%", PriceAdjustment = 0, DisplayOrder = 3 },
-                    new OptionItem
-                    {
-                        OptionGroupId = iceGroup.Id, Name = "70%", PriceAdjustment = 0, IsDefault = true,
-                        DisplayOrder = 4
-                    },
-                    new OptionItem { OptionGroupId = iceGroup.Id, Name = "100%", PriceAdjustment = 0, DisplayOrder = 5 }
-                );
-
-                var toppingGroup = new OptionGroup { ProductId = product.Id, Name = "Topping", IsRequired = false, AllowMultiple = true, DisplayOrder = 4 };
-                context.OptionGroups.Add(toppingGroup);
-                await context.SaveChangesAsync();
-
-                context.OptionItems.AddRange(
-                    new OptionItem { OptionGroupId = toppingGroup.Id, Name = "Trân châu đen", PriceAdjustment = 10000, DisplayOrder = 1 },
-                    new OptionItem { OptionGroupId = toppingGroup.Id, Name = "Trân châu trắng", PriceAdjustment = 10000, DisplayOrder = 2 },
-                    new OptionItem { OptionGroupId = toppingGroup.Id, Name = "Thạch dừa", PriceAdjustment = 8000, DisplayOrder = 3 },
-                    new OptionItem { OptionGroupId = toppingGroup.Id, Name = "Pudding", PriceAdjustment = 12000, DisplayOrder = 4 },
-                    new OptionItem { OptionGroupId = toppingGroup.Id, Name = "Kem cheese", PriceAdjustment = 15000, DisplayOrder = 5 }
-                );
+                context.ProductOptionGroups.Add(new ProductOptionGroup
+                {
+                    ProductId = product.Id,
+                    OptionGroupId = templateTopping.Id,
+                    DisplayOrder = 4
+                });
             }
         }
 
         await context.SaveChangesAsync();
+
+        // Thống kê
+        var drinkCount = products.Count(p => p.CategoryId != 3);
+        var foodCount = products.Count(p => p.CategoryId == 3);
+        var totalMappings = drinkCount * 4 + foodCount * 1;
+        Console.WriteLine($"  ✓ {drinkCount} drinks × 4 groups = {drinkCount * 4} mappings");
+        Console.WriteLine($"  ✓ {foodCount} foods × 1 group = {foodCount * 1} mappings");
+        Console.WriteLine($"📦 Total: {totalMappings} ProductOptionGroup mappings");
+
+        Console.WriteLine("\n✅ Seed completed successfully!");
+        Console.WriteLine($"   - OptionGroups: 4 templates (thay vì {products.Count * 4} như cũ)");
+        Console.WriteLine($"   - OptionItems: 18 items (thay vì {products.Count * 18} như cũ)");
+        Console.WriteLine($"   - ProductOptionGroups: {totalMappings} mappings");
     }
 }

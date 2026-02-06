@@ -14,14 +14,14 @@ public class OptionGroupConfiguration : IEntityTypeConfiguration<OptionGroup>
             .IsRequired()
             .HasMaxLength(100);
 
-        builder.HasOne(og => og.Product)
-            .WithMany(p => p.OptionGroups)
-            .HasForeignKey(og => og.ProductId)
-            .OnDelete(DeleteBehavior.Cascade);
+        builder.Property(og => og.Description)
+            .HasMaxLength(500);
 
-        builder.HasIndex(og => og.ProductId);
+        // DependsOnOptionItemId là nullable (không có FK constraint để tránh circular reference)
+        builder.Property(og => og.DependsOnOptionItemId)
+            .IsRequired(false);
 
-        builder.Property(og => og.FatherId)
-            .IsRequired();
+        // Index cho Name để tìm kiếm nhanh
+        builder.HasIndex(og => og.Name);
     }
 }

@@ -25,6 +25,8 @@ public class Product
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-    // He thong tuy chon (thay the ProductDetail)
-    public ICollection<OptionGroup> OptionGroups { get; set; } = new List<OptionGroup>();
+    /// <summary>
+    /// Danh sách OptionGroup templates được gán cho product này (qua bảng mapping)
+    /// </summary>
+    public ICollection<ProductOptionGroup> ProductOptionGroups { get; set; } = new List<ProductOptionGroup>();
 }

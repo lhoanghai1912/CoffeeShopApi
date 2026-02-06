@@ -671,15 +671,28 @@ public class OrderService : IOrderService
         var options = new List<OrderItemOption>();
         var errors = new List<string>();
 
-        // Lấy tất cả OptionGroups của product
-        var optionGroups = await _context.OptionGroups
-            .Include(og => og.OptionItems)
-            .Where(og => og.ProductId == product.Id)
+        // Lấy tất cả OptionGroups của product qua ProductOptionGroups mapping
+        var optionGroups = await _context.ProductOptionGroups
+            .Where(pog => pog.ProductId == product.Id)
+            .Include(pog => pog.OptionGroup)
+                .ThenInclude(og => og!.OptionItems)
+            .OrderBy(pog => pog.DisplayOrder)
+            .Select(pog => pog.OptionGroup!)
             .ToListAsync();
 
         // Validate từng OptionGroup
         foreach (var group in optionGroups)
         {
+            // Kiểm tra dependency: nếu group phụ thuộc vào một option item khác
+            if (group.DependsOnOptionItemId.HasValue)
+            {
+                // Skip group này nếu option phụ thuộc không được chọn
+                if (!selectedOptionItemIds.Contains(group.DependsOnOptionItemId.Value))
+                {
+                    continue;
+                }
+            }
+
             var selectedInGroup = group.OptionItems
                 .Where(oi => selectedOptionItemIds.Contains(oi.Id))
                 .ToList();
@@ -687,8 +700,17 @@ public class OrderService : IOrderService
             // Kiểm tra Required
             if (group.IsRequired && !selectedInGroup.Any())
             {
-                errors.Add($"Nhóm '{group.Name}' là bắt buộc");
-                continue;
+                // Auto-select default option nếu có
+                var defaultItem = group.OptionItems.FirstOrDefault(oi => oi.IsDefault);
+                if (defaultItem != null)
+                {
+                    selectedInGroup.Add(defaultItem);
+                }
+                else
+                {
+                    errors.Add($"Nhóm '{group.Name}' là bắt buộc");
+                    continue;
+                }
             }
 
             // Kiểm tra AllowMultiple

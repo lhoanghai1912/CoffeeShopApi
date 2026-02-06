@@ -73,33 +73,6 @@ public class ProductService : IProductService
             BasePrice = request.BasePrice
         };
 
-
-
-        // Add OptionGroups if provided
-        if (request.OptionGroups != null && request.OptionGroups.Any())
-        {
-            foreach (var ogRequest in request.OptionGroups)
-            {
-                var optionGroup = new OptionGroup
-                {
-                    Name = ogRequest.Name,
-                    IsRequired = ogRequest.IsRequired,
-                    AllowMultiple = ogRequest.AllowMultiple,
-                    DisplayOrder = ogRequest.DisplayOrder,
-                    // fatherId is not mapped to entity, but you can add logic here if needed
-                    OptionItems = ogRequest.OptionItems.Select(oi => new OptionItem
-                    {
-                        Name = oi.Name,
-                        PriceAdjustment = oi.PriceAdjustment,
-                        IsDefault = oi.IsDefault,
-                        DisplayOrder = oi.DisplayOrder,
-                        // fatherId is not mapped to entity, but you can add logic here if needed
-                    }).ToList()
-                };
-                product.OptionGroups.Add(optionGroup);
-            }
-        }
-
         // If frontend provided CategoryId, validate it and set
         if (categoryId != null)
         {
@@ -112,6 +85,51 @@ public class ProductService : IProductService
         }
 
         await _productRepository.CreateWithOptionsAsync(product);
+
+        // Thêm ProductOptionGroup mappings nếu có OptionGroups trong request
+        if (request.OptionGroups != null && request.OptionGroups.Any())
+        {
+            int displayOrder = 1;
+            foreach (var ogRequest in request.OptionGroups)
+            {
+                // Tìm hoặc tạo OptionGroup template
+                var existingGroup = await _context.OptionGroups
+                    .Include(og => og.OptionItems)
+                    .FirstOrDefaultAsync(og => og.Name == ogRequest.Name);
+
+                if (existingGroup == null)
+                {
+                    // Tạo mới OptionGroup template
+                    existingGroup = new OptionGroup
+                    {
+                        Name = ogRequest.Name,
+                        Description = ogRequest.Description,
+                        IsRequired = ogRequest.IsRequired,
+                        AllowMultiple = ogRequest.AllowMultiple,
+                        DisplayOrder = ogRequest.DisplayOrder,
+                        DependsOnOptionItemId = ogRequest.DependsOnOptionItemId,
+                        OptionItems = ogRequest.OptionItems.Select(oi => new OptionItem
+                        {
+                            Name = oi.Name,
+                            PriceAdjustment = oi.PriceAdjustment,
+                            IsDefault = oi.IsDefault,
+                            DisplayOrder = oi.DisplayOrder
+                        }).ToList()
+                    };
+                    _context.OptionGroups.Add(existingGroup);
+                    await _context.SaveChangesAsync();
+                }
+
+                // Tạo mapping
+                _context.ProductOptionGroups.Add(new ProductOptionGroup
+                {
+                    ProductId = product.Id,
+                    OptionGroupId = existingGroup.Id,
+                    DisplayOrder = displayOrder++
+                });
+            }
+            await _context.SaveChangesAsync();
+        }
 
         // Reload product with related data for response
         var created = await _productRepository.GetByIdWithDetailsAsync(product.Id);
@@ -132,7 +150,7 @@ public class ProductService : IProductService
         product.Description = request.Description;
         product.ImageUrl = request.ImageUrl;
         product.BasePrice = request.BasePrice;
-        
+
         // determine category id (support nested Category object or CategoryId)
         int? updCategoryId = request.CategoryId;
         var categoryProp2 = request.GetType().GetProperty("Category");
@@ -159,30 +177,46 @@ public class ProductService : IProductService
             product.Category = category;
         }
 
-        // Build new OptionGroups if provided
-        ICollection<OptionGroup>? newOptionGroups = null;
+        // Build OptionGroup IDs từ request
+        List<int>? optionGroupIds = null;
         if (request.OptionGroups != null)
         {
-            newOptionGroups = request.OptionGroups.Select(ogRequest => new OptionGroup
+            optionGroupIds = new List<int>();
+            foreach (var ogRequest in request.OptionGroups)
             {
-                ProductId = product.Id,
-                Name = ogRequest.Name,
-                IsRequired = ogRequest.IsRequired,
-                AllowMultiple = ogRequest.AllowMultiple,
-                DisplayOrder = ogRequest.DisplayOrder,
-                // fatherId is not mapped to entity, but you can add logic here if needed
-                OptionItems = ogRequest.OptionItems.Select(oi => new OptionItem
+                // Tìm hoặc tạo OptionGroup template
+                var existingGroup = await _context.OptionGroups
+                    .Include(og => og.OptionItems)
+                    .FirstOrDefaultAsync(og => og.Name == ogRequest.Name);
+
+                if (existingGroup == null)
                 {
-                    Name = oi.Name,
-                    PriceAdjustment = oi.PriceAdjustment,
-                    IsDefault = oi.IsDefault,
-                    DisplayOrder = oi.DisplayOrder,
-                    // fatherId is not mapped to entity, but you can add logic here if needed
-                }).ToList()
-            }).ToList();
+                    // Tạo mới OptionGroup template
+                    existingGroup = new OptionGroup
+                    {
+                        Name = ogRequest.Name,
+                        Description = ogRequest.Description,
+                        IsRequired = ogRequest.IsRequired,
+                        AllowMultiple = ogRequest.AllowMultiple,
+                        DisplayOrder = ogRequest.DisplayOrder,
+                        DependsOnOptionItemId = ogRequest.DependsOnOptionItemId,
+                        OptionItems = ogRequest.OptionItems.Select(oi => new OptionItem
+                        {
+                            Name = oi.Name,
+                            PriceAdjustment = oi.PriceAdjustment,
+                            IsDefault = oi.IsDefault,
+                            DisplayOrder = oi.DisplayOrder
+                        }).ToList()
+                    };
+                    _context.OptionGroups.Add(existingGroup);
+                    await _context.SaveChangesAsync();
+                }
+
+                optionGroupIds.Add(existingGroup.Id);
+            }
         }
 
-        return await _productRepository.UpdateWithOptionsAsync(product, newOptionGroups);
+        return await _productRepository.UpdateWithOptionsAsync(product, optionGroupIds);
     }
 
     public async Task<bool> DeleteAsync(int id)
@@ -213,17 +247,19 @@ public class ProductService : IProductService
                 Id = product.Category.Id,
                 Name = product.Category.Name
             },
-            OptionGroups = product.OptionGroups
-                .OrderBy(og => og.DisplayOrder)
-                .Select(og => new OptionGroupDto
+            OptionGroups = product.ProductOptionGroups
+                .OrderBy(pog => pog.DisplayOrder)
+                .Where(pog => pog.OptionGroup != null)
+                .Select(pog => new OptionGroupDto
                 {
-                    Id = og.Id,
-                    Name = og.Name,
-                    IsRequired = og.IsRequired,
-                    AllowMultiple = og.AllowMultiple,
-                    DisplayOrder = og.DisplayOrder,
-                    FatherId = og.ProductId, // Set fatherId as ProductId
-                    OptionItems = og.OptionItems
+                    Id = pog.OptionGroup!.Id,
+                    Name = pog.OptionGroup.Name,
+                    Description = pog.OptionGroup.Description,
+                    IsRequired = pog.OptionGroup.IsRequired,
+                    AllowMultiple = pog.OptionGroup.AllowMultiple,
+                    DisplayOrder = pog.DisplayOrder,
+                    DependsOnOptionItemId = pog.OptionGroup.DependsOnOptionItemId,
+                    OptionItems = pog.OptionGroup.OptionItems
                         .OrderBy(oi => oi.DisplayOrder)
                         .Select(oi => new OptionItemDto
                         {
@@ -231,8 +267,7 @@ public class ProductService : IProductService
                             Name = oi.Name,
                             PriceAdjustment = oi.PriceAdjustment,
                             IsDefault = oi.IsDefault,
-                            DisplayOrder = oi.DisplayOrder,
-                            FatherId = oi.OptionGroupId // Set fatherId as OptionGroupId
+                            DisplayOrder = oi.DisplayOrder
                         }).ToList()
                 }).ToList()
         };
