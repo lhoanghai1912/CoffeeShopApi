@@ -59,13 +59,18 @@ public class ProductsController : ControllerBase
         try
         {
             var request = _requestService.ParseFormData<CreateProductRequest>(form.FormField);
-            
+
             var validationErrors = _requestService.ValidateProductRequest(request);
             if (validationErrors.Any())
                 return BadRequest(ApiResponse<object>.Fail(validationErrors));
 
-            if (form.Image != null && form.Image.Length > 0)
+            if (form.Image != null)
             {
+                if (!_fileUploadService.ValidateImage(form.Image, out string imageError))
+                {
+                    return BadRequest(ApiResponse<object>.Fail(imageError));
+                }
+
                 request.ImageUrl = await _fileUploadService.UploadImageAsync(form.Image);
             }
 
@@ -75,6 +80,10 @@ public class ProductsController : ControllerBase
         catch (ArgumentException ex)
         {
             return BadRequest(ApiResponse<object>.Fail(ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(500, ApiResponse<object>.Fail($"File upload error: {ex.Message}"));
         }
     }
 
@@ -86,24 +95,33 @@ public class ProductsController : ControllerBase
         try
         {
             var request = _requestService.ParseFormData<UpdateProductRequest>(form.FormField);
-            
+
             var validationErrors = _requestService.ValidateProductRequest(request);
             if (validationErrors.Any())
                 return BadRequest(ApiResponse<object>.Fail(validationErrors));
 
-            if (form.Image != null && form.Image.Length > 0)
+            if (form.Image != null)
             {
+                if (!_fileUploadService.ValidateImage(form.Image, out string imageError))
+                {
+                    return BadRequest(ApiResponse<object>.Fail(imageError));
+                }
+
                 request.ImageUrl = await _fileUploadService.UploadImageAsync(form.Image);
             }
 
             var success = await _service.UpdateAsync(id, request);
             if (!success) return NotFound(ApiResponse<object>.NotFound());
-            
+
             return Ok(ApiResponse<object>.Ok(success, "Cập nhật sản phẩm thành công"));
         }
         catch (ArgumentException ex)
         {
             return BadRequest(ApiResponse<object>.Fail(ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(500, ApiResponse<object>.Fail($"File upload error: {ex.Message}"));
         }
     }
 
