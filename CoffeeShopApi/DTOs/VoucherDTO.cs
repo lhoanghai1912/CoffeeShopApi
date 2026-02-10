@@ -21,6 +21,22 @@ public class ValidateVoucherRequest
 }
 
 /// <summary>
+/// ⭐ Request to check voucher by ID (khi user chọn voucher từ danh sách)
+/// </summary>
+public class CheckVoucherRequest
+{
+    [Required]
+    public int VoucherId { get; set; }
+
+    /// <summary>
+    /// Order subtotal để tính discount
+    /// </summary>
+    [Required]
+    [Range(0, double.MaxValue)]
+    public decimal OrderSubTotal { get; set; }
+}
+
+/// <summary>
 /// Request to create a new voucher (Admin)
 /// </summary>
 public class CreateVoucherRequest

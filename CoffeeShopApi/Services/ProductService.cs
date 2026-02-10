@@ -86,46 +86,38 @@ public class ProductService : IProductService
 
         await _productRepository.CreateWithOptionsAsync(product);
 
-        // Thêm ProductOptionGroup mappings nếu có OptionGroups trong request
+        // ⭐ Thêm ProductOptionGroup mappings
         if (request.OptionGroups != null && request.OptionGroups.Any())
         {
-            int displayOrder = 1;
             foreach (var ogRequest in request.OptionGroups)
             {
-                // Tìm hoặc tạo OptionGroup template
-                var existingGroup = await _context.OptionGroups
+                // Kiểm tra OptionGroup có tồn tại không
+                var optionGroup = await _context.OptionGroups
                     .Include(og => og.OptionItems)
-                    .FirstOrDefaultAsync(og => og.Name == ogRequest.Name);
+                    .FirstOrDefaultAsync(og => og.Id == ogRequest.OptionGroupId);
 
-                if (existingGroup == null)
+                if (optionGroup == null)
+                    throw new ArgumentException($"OptionGroup with ID {ogRequest.OptionGroupId} not found");
+
+                // Validate allowedItemIds nếu có
+                if (ogRequest.AllowedItemIds != null && ogRequest.AllowedItemIds.Any())
                 {
-                    // Tạo mới OptionGroup template
-                    existingGroup = new OptionGroup
-                    {
-                        Name = ogRequest.Name,
-                        Description = ogRequest.Description,
-                        IsRequired = ogRequest.IsRequired,
-                        AllowMultiple = ogRequest.AllowMultiple,
-                        DisplayOrder = ogRequest.DisplayOrder,
-                        DependsOnOptionItemId = ogRequest.DependsOnOptionItemId,
-                        OptionItems = ogRequest.OptionItems.Select(oi => new OptionItem
-                        {
-                            Name = oi.Name,
-                            PriceAdjustment = oi.PriceAdjustment,
-                            IsDefault = oi.IsDefault,
-                            DisplayOrder = oi.DisplayOrder
-                        }).ToList()
-                    };
-                    _context.OptionGroups.Add(existingGroup);
-                    await _context.SaveChangesAsync();
+                    var invalidIds = ogRequest.AllowedItemIds
+                        .Where(itemId => !optionGroup.OptionItems.Any(oi => oi.Id == itemId))
+                        .ToList();
+
+                    if (invalidIds.Any())
+                        throw new ArgumentException(
+                            $"OptionGroup {ogRequest.OptionGroupId} does not contain items with IDs: {string.Join(", ", invalidIds)}");
                 }
 
                 // Tạo mapping
                 _context.ProductOptionGroups.Add(new ProductOptionGroup
                 {
                     ProductId = product.Id,
-                    OptionGroupId = existingGroup.Id,
-                    DisplayOrder = displayOrder++
+                    OptionGroupId = ogRequest.OptionGroupId,
+                    DisplayOrder = ogRequest.DisplayOrder,
+                    AllowedItemIds = ogRequest.AllowedItemIds
                 });
             }
             await _context.SaveChangesAsync();
@@ -177,46 +169,50 @@ public class ProductService : IProductService
             product.Category = category;
         }
 
-        // Build OptionGroup IDs từ request
-        List<int>? optionGroupIds = null;
+        // ⭐ Cập nhật ProductOptionGroup mappings
         if (request.OptionGroups != null)
         {
-            optionGroupIds = new List<int>();
+            // Xóa tất cả mappings cũ
+            var existingMappings = await _context.ProductOptionGroups
+                .Where(pog => pog.ProductId == id)
+                .ToListAsync();
+            _context.ProductOptionGroups.RemoveRange(existingMappings);
+
+            // Thêm mappings mới
             foreach (var ogRequest in request.OptionGroups)
             {
-                // Tìm hoặc tạo OptionGroup template
-                var existingGroup = await _context.OptionGroups
+                // Kiểm tra OptionGroup có tồn tại không
+                var optionGroup = await _context.OptionGroups
                     .Include(og => og.OptionItems)
-                    .FirstOrDefaultAsync(og => og.Name == ogRequest.Name);
+                    .FirstOrDefaultAsync(og => og.Id == ogRequest.OptionGroupId);
 
-                if (existingGroup == null)
+                if (optionGroup == null)
+                    throw new ArgumentException($"OptionGroup with ID {ogRequest.OptionGroupId} not found");
+
+                // Validate allowedItemIds nếu có
+                if (ogRequest.AllowedItemIds != null && ogRequest.AllowedItemIds.Any())
                 {
-                    // Tạo mới OptionGroup template
-                    existingGroup = new OptionGroup
-                    {
-                        Name = ogRequest.Name,
-                        Description = ogRequest.Description,
-                        IsRequired = ogRequest.IsRequired,
-                        AllowMultiple = ogRequest.AllowMultiple,
-                        DisplayOrder = ogRequest.DisplayOrder,
-                        DependsOnOptionItemId = ogRequest.DependsOnOptionItemId,
-                        OptionItems = ogRequest.OptionItems.Select(oi => new OptionItem
-                        {
-                            Name = oi.Name,
-                            PriceAdjustment = oi.PriceAdjustment,
-                            IsDefault = oi.IsDefault,
-                            DisplayOrder = oi.DisplayOrder
-                        }).ToList()
-                    };
-                    _context.OptionGroups.Add(existingGroup);
-                    await _context.SaveChangesAsync();
+                    var invalidIds = ogRequest.AllowedItemIds
+                        .Where(itemId => !optionGroup.OptionItems.Any(oi => oi.Id == itemId))
+                        .ToList();
+
+                    if (invalidIds.Any())
+                        throw new ArgumentException(
+                            $"OptionGroup {ogRequest.OptionGroupId} does not contain items with IDs: {string.Join(", ", invalidIds)}");
                 }
 
-                optionGroupIds.Add(existingGroup.Id);
+                // Tạo mapping mới
+                _context.ProductOptionGroups.Add(new ProductOptionGroup
+                {
+                    ProductId = product.Id,
+                    OptionGroupId = ogRequest.OptionGroupId,
+                    DisplayOrder = ogRequest.DisplayOrder,
+                    AllowedItemIds = ogRequest.AllowedItemIds
+                });
             }
         }
 
-        return await _productRepository.UpdateWithOptionsAsync(product, optionGroupIds);
+        return await _productRepository.UpdateWithOptionsAsync(product, null);
     }
 
     public async Task<bool> DeleteAsync(int id)
@@ -250,25 +246,37 @@ public class ProductService : IProductService
             OptionGroups = product.ProductOptionGroups
                 .OrderBy(pog => pog.DisplayOrder)
                 .Where(pog => pog.OptionGroup != null)
-                .Select(pog => new OptionGroupDto
+                .Select(pog =>
                 {
-                    Id = pog.OptionGroup!.Id,
-                    Name = pog.OptionGroup.Name,
-                    Description = pog.OptionGroup.Description,
-                    IsRequired = pog.OptionGroup.IsRequired,
-                    AllowMultiple = pog.OptionGroup.AllowMultiple,
-                    DisplayOrder = pog.DisplayOrder,
-                    DependsOnOptionItemId = pog.OptionGroup.DependsOnOptionItemId,
-                    OptionItems = pog.OptionGroup.OptionItems
-                        .OrderBy(oi => oi.DisplayOrder)
-                        .Select(oi => new OptionItemDto
-                        {
-                            Id = oi.Id,
-                            Name = oi.Name,
-                            PriceAdjustment = oi.PriceAdjustment,
-                            IsDefault = oi.IsDefault,
-                            DisplayOrder = oi.DisplayOrder
-                        }).ToList()
+                    var allowedIds = pog.AllowedItemIds;
+                    var items = pog.OptionGroup!.OptionItems.AsEnumerable();
+
+                    // ⭐ Filter items theo AllowedItemIds nếu có
+                    if (allowedIds != null && allowedIds.Any())
+                    {
+                        items = items.Where(oi => allowedIds.Contains(oi.Id));
+                    }
+
+                    return new OptionGroupDto
+                    {
+                        Id = pog.OptionGroup!.Id,
+                        Name = pog.OptionGroup.Name,
+                        Description = pog.OptionGroup.Description,
+                        IsRequired = pog.OptionGroup.IsRequired,
+                        AllowMultiple = pog.OptionGroup.AllowMultiple,
+                        DisplayOrder = pog.DisplayOrder,
+                        DependsOnOptionItemId = pog.OptionGroup.DependsOnOptionItemId,
+                        OptionItems = items
+                            .OrderBy(oi => oi.DisplayOrder)
+                            .Select(oi => new OptionItemDto
+                            {
+                                Id = oi.Id,
+                                Name = oi.Name,
+                                PriceAdjustment = oi.PriceAdjustment,
+                                IsDefault = oi.IsDefault,
+                                DisplayOrder = oi.DisplayOrder
+                            }).ToList()
+                    };
                 }).ToList()
         };
     }

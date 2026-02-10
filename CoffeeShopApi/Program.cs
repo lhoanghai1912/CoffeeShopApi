@@ -115,6 +115,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+builder.Services.AddScoped<IOptionGroupRepository, OptionGroupRepo>();
+builder.Services.AddScoped<IOptionItemRepository, OptionItemRepo>();
 
 // Đăng ký Services (Dependency Injection)
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -125,6 +127,8 @@ builder.Services.AddScoped<IFileUploadService, FileUploadService>();
 builder.Services.AddScoped<IProductRequestService, ProductRequestService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IOptionGroupService, OptionGroupService>();
+builder.Services.AddScoped<IOptionItemService, OptionItemService>();
 
 // User address service
 builder.Services.AddScoped<IUserAddressService, UserAddressService>();

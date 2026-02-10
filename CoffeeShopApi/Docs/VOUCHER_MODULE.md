@@ -25,7 +25,7 @@ Voucher Module quản lý mã giảm giá với 2 loại: **Public** (ai cũng d
 
 ### Customer Endpoints
 
-#### 1. Validate Voucher
+#### 1. Validate Voucher (by Code)
 
 **Endpoint:** `POST /api/vouchers/validate`
 
@@ -84,7 +84,125 @@ Voucher Module quản lý mã giảm giá với 2 loại: **Public** (ai cũng d
 
 ---
 
-#### 2. Get Active Public Vouchers
+#### 2. ⭐ Check Voucher (by ID) - Recommended
+
+**Endpoint:** `POST /api/vouchers/check`
+
+**Authorization:** Required
+
+**Use Case:** Khi người dùng chọn voucher từ danh sách (đã có voucherId)
+
+**Request Body:**
+```json
+{
+  "voucherId": 2,
+  "orderSubTotal": 150000
+}
+```
+
+**Response (Valid):**
+```json
+{
+  "success": true,
+  "message": "Voucher khả dụng",
+  "data": {
+    "isValid": true,
+    "voucherId": 2,
+    "voucherCode": "SALE20",
+    "voucherDescription": "Giảm 20% tối đa 50,000đ",
+    "discountType": "Percentage",
+    "discountValue": 20,
+    "minOrderValue": 100000,
+    "maxDiscountAmount": 50000,
+    "orderSubTotal": 150000,
+    "discountAmount": 30000,
+    "finalAmount": 120000,
+    "savedAmount": 30000,
+    "percentageSaved": 20.0
+  }
+}
+```
+
+**Response (Invalid - MinOrderValue not met):**
+```json
+{
+  "success": true,
+  "message": "Đơn hàng phải từ 100,000đ để sử dụng voucher này",
+  "data": {
+    "isValid": false,
+    "errorMessage": "Đơn hàng phải từ 100,000đ để sử dụng voucher này",
+    "voucherId": 2,
+    "orderSubTotal": 80000,
+    "discountAmount": 0,
+    "finalAmount": 80000
+  }
+}
+```
+
+**Response (Invalid - Expired):**
+```json
+{
+  "success": true,
+  "message": "Voucher đã hết hạn",
+  "data": {
+    "isValid": false,
+    "errorMessage": "Voucher đã hết hạn",
+    "voucherId": 2,
+    "orderSubTotal": 150000,
+    "discountAmount": 0,
+    "finalAmount": 150000
+  }
+}
+```
+
+**Response (Not Found):**
+```json
+{
+  "success": false,
+  "message": "Voucher không tồn tại",
+  "status": 404
+}
+```
+
+**Frontend Example:**
+```javascript
+// Khi user chọn voucher từ danh sách
+const checkVoucher = async (voucherId, cartTotal) => {
+  const response = await fetch('/api/vouchers/check', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      voucherId: voucherId,
+      orderSubTotal: cartTotal
+    })
+  });
+
+  const result = await response.json();
+
+  if (result.success && result.data.isValid) {
+    // Hiển thị thông tin giảm giá
+    console.log(`Tiết kiệm: ${result.data.savedAmount.toLocaleString()}đ`);
+    console.log(`Giảm: ${result.data.percentageSaved}%`);
+    console.log(`Tổng cuối: ${result.data.finalAmount.toLocaleString()}đ`);
+  } else {
+    // Hiển thị lỗi
+    alert(result.data.errorMessage || 'Voucher không khả dụng');
+  }
+};
+```
+
+**Difference from Validate endpoint:**
+- ✅ Nhận `voucherId` thay vì `voucherCode` (thuận tiện hơn)
+- ✅ Trả về `finalAmount` và `percentageSaved`
+- ✅ Trả về `voucherDescription` để hiển thị
+- ✅ Vẫn trả về HTTP 200 kể cả khi invalid (để FE xử lý dễ hơn)
+
+---
+
+#### 3. Get Active Public Vouchers
 
 **Endpoint:** `GET /api/vouchers/active`
 
@@ -133,7 +251,7 @@ Voucher Module quản lý mã giảm giá với 2 loại: **Public** (ai cũng d
 
 ---
 
-#### 3. Get My Vouchers (Private)
+#### 4. Get My Vouchers (Private)
 
 **Endpoint:** `GET /api/vouchers/my-vouchers`
 
@@ -202,7 +320,7 @@ GET /api/vouchers/my-vouchers?isUsed=true
 
 ---
 
-#### 4. Get Voucher by Code
+#### 5. Get Voucher by Code
 
 **Endpoint:** `GET /api/vouchers/code/{code}`
 
@@ -241,7 +359,7 @@ GET /api/vouchers/code/WELCOME10K
 
 ### Admin Endpoints
 
-#### 5. Get Vouchers with Pagination
+#### 6. Get Vouchers with Pagination
 
 **Endpoint:** `GET /api/vouchers/Paged`
 
@@ -405,7 +523,7 @@ const highValuePrivateVouchers = await loadVouchers({
 
 ---
 
-#### 6. Get All Vouchers (No Pagination)
+#### 7. Get All Vouchers (No Pagination)
 
 **Endpoint:** `GET /api/vouchers/all`
 
@@ -488,7 +606,7 @@ const loadVoucherOptions = async () => {
 
 ---
 
-#### 7. Get Voucher by ID
+#### 8. Get Voucher by ID
 
 **Endpoint:** `GET /api/vouchers/{id}`
 
@@ -501,7 +619,7 @@ GET /api/vouchers/8
 
 ---
 
-#### 8. Create Voucher
+#### 9. Create Voucher
 
 **Endpoint:** `POST /api/vouchers`
 
@@ -552,7 +670,7 @@ GET /api/vouchers/8
 
 ---
 
-#### 9. Update Voucher
+#### 10. Update Voucher
 
 **Endpoint:** `PUT /api/vouchers/{id}`
 
@@ -571,7 +689,7 @@ GET /api/vouchers/8
 
 ---
 
-#### 10. Delete Voucher (Soft Delete)
+#### 11. Delete Voucher (Soft Delete)
 
 **Endpoint:** `DELETE /api/vouchers/{id}`
 
@@ -589,7 +707,7 @@ GET /api/vouchers/8
 
 ---
 
-#### 11. Assign Voucher to Users
+#### 12. Assign Voucher to Users
 
 **Endpoint:** `POST /api/vouchers/assign`
 
@@ -624,7 +742,7 @@ GET /api/vouchers/8
 
 ---
 
-#### 12. Get Voucher Assignments
+#### 13. Get Voucher Assignments
 
 **Endpoint:** `GET /api/vouchers/{id}/assignments`
 

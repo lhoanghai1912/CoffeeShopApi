@@ -43,6 +43,66 @@ public class VouchersController : ControllerBase
     }
 
     /// <summary>
+    /// [Customer] ⭐ Kiểm tra voucher theo ID và tính toán giá trị giảm
+    /// Dùng khi user chọn voucher từ danh sách (đã có voucherId)
+    /// </summary>
+    [HttpPost("check")]
+    [Authorize]
+    public async Task<IActionResult> CheckVoucherById([FromBody] CheckVoucherRequest request)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+            return Unauthorized(ApiResponse<object>.Unauthorized("Không xác định được user"));
+
+        // Lấy thông tin voucher
+        var voucher = await _voucherService.GetByIdAsync(request.VoucherId);
+        if (voucher == null)
+            return NotFound(ApiResponse<object>.NotFound("Voucher không tồn tại"));
+
+        // Validate voucher
+        var result = await _voucherService.ValidateVoucherAsync(
+            voucher.Code, 
+            userId.Value, 
+            request.OrderSubTotal);
+
+        if (!result.IsValid)
+        {
+            return Ok(ApiResponse<object>.Ok(new
+            {
+                isValid = false,
+                errorMessage = result.ErrorMessage,
+                voucherId = request.VoucherId,
+                orderSubTotal = request.OrderSubTotal,
+                discountAmount = 0m,
+                finalAmount = request.OrderSubTotal
+            }, result.ErrorMessage ?? "Voucher không khả dụng"));
+        }
+
+        // Tính toán giá trị cuối cùng
+        var finalAmount = request.OrderSubTotal - result.CalculatedDiscount;
+        if (finalAmount < 0) finalAmount = 0;
+
+        return Ok(ApiResponse<object>.Ok(new
+        {
+            isValid = true,
+            voucherId = voucher.Id,
+            voucherCode = voucher.Code,
+            voucherDescription = voucher.Description,
+            discountType = voucher.DiscountType.ToString(),
+            discountValue = voucher.DiscountValue,
+            minOrderValue = voucher.MinOrderValue,
+            maxDiscountAmount = voucher.MaxDiscountAmount,
+            orderSubTotal = request.OrderSubTotal,
+            discountAmount = result.CalculatedDiscount,
+            finalAmount = finalAmount,
+            savedAmount = result.CalculatedDiscount,
+            percentageSaved = request.OrderSubTotal > 0 
+                ? Math.Round((result.CalculatedDiscount / request.OrderSubTotal) * 100, 2) 
+                : 0
+        }, "Voucher khả dụng"));
+    }
+
+    /// <summary>
     /// [Customer] Lấy danh sách voucher khả dụng cho user (public vouchers + private vouchers được gán)
     /// </summary>
     [HttpGet("my-vouchers")]

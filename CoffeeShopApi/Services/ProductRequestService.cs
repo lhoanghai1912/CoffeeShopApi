@@ -43,22 +43,21 @@ public class ProductRequestService : IProductRequestService
                 errors.Add("categoryId must be a positive integer");
         }
 
+        // ⭐ Validate OptionGroups (chỉ cần check OptionGroupId)
         if (request.OptionGroups != null)
         {
             for (int i = 0; i < request.OptionGroups.Count; i++)
             {
                 var og = request.OptionGroups[i];
-                if (string.IsNullOrWhiteSpace(og.Name))
-                    errors.Add($"optionGroups[{i}].name is required");
-                
-                if (og.OptionItems != null)
+
+                if (og.OptionGroupId <= 0)
+                    errors.Add($"optionGroups[{i}].optionGroupId must be a positive integer");
+
+                // Validate AllowedItemIds nếu có
+                if (og.AllowedItemIds != null && og.AllowedItemIds.Any())
                 {
-                    for (int j = 0; j < og.OptionItems.Count; j++)
-                    {
-                        var oi = og.OptionItems[j];
-                        if (string.IsNullOrWhiteSpace(oi.Name))
-                            errors.Add($"optionGroups[{i}].optionItems[{j}].name is required");
-                    }
+                    if (og.AllowedItemIds.Any(id => id <= 0))
+                        errors.Add($"optionGroups[{i}].allowedItemIds must contain positive integers only");
                 }
             }
         }
