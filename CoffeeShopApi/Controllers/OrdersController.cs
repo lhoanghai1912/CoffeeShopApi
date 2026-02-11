@@ -4,6 +4,7 @@ using CoffeeShopApi.Services;
 using CoffeeShopApi.Shared;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace CoffeeShopApi.Controllers;
 
@@ -14,11 +15,22 @@ public class OrdersController : ControllerBase
 {
     private readonly IOrderService _orderService;
 
+    private int? GetCurrentUserId()
+    {
+        var userIdClaim = User.FindFirst("userId") ?? User.FindFirst(ClaimTypes.NameIdentifier);
+        if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
+        {
+            return userId;
+        }
+        return null;
+    }
+
+    
     public OrdersController(IOrderService orderService)
     {
         _orderService = orderService;
     }
-
+    
     #region Query Endpoints
 
     /// <summary>
@@ -74,6 +86,26 @@ public class OrdersController : ControllerBase
     public async Task<IActionResult> GetByUserId(int userId)
     {
         var result = await _orderService.GetByUserIdAsync(userId);
+        return Ok(ApiResponse<object>.Ok(result));
+    }
+
+    /// <summary>
+    /// ⭐ Lấy danh sách đơn hàng của user hiện tại với pagination
+    /// </summary>
+    [HttpGet("mine")]
+    [Authorize]
+    public async Task<IActionResult> GetMyOrdersPaged(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? search = null,
+        [FromQuery] string? orderBy = null,
+        [FromQuery] string? filter = null)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+            return Unauthorized(ApiResponse<object>.Unauthorized("Không xác định được user"));
+
+        var result = await _orderService.GetByUserIdPagedAsync(userId.Value, page, pageSize, search, orderBy, filter);
         return Ok(ApiResponse<object>.Ok(result));
     }
 

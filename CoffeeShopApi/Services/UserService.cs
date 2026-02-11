@@ -12,37 +12,42 @@ public interface IUserService
     /// Lấy thông tin profile của user
     /// </summary>
     Task<UserProfileResponse?> GetProfileAsync(int userId);
-    
+
     /// <summary>
     /// Lấy profile kèm thống kê order
     /// </summary>
     Task<UserProfileResponse?> GetProfileWithStatsAsync(int userId);
-    
+
     /// <summary>
     /// Cập nhật thông tin profile (FullName, PhoneNumber, Email)
     /// </summary>
     Task<UserProfileResponse?> UpdateProfileAsync(int userId, UpdateProfileRequest request);
-    
+
+    /// <summary>
+    /// ⭐ Cập nhật avatar URL
+    /// </summary>
+    Task<bool> UpdateAvatarAsync(int userId, string? avatarUrl);
+
     /// <summary>
     /// Đổi mật khẩu
     /// </summary>
     Task<(bool Success, string Message)> ChangePasswordAsync(int userId, ChangePasswordRequest request);
-    
+
     /// <summary>
     /// Deactivate user (soft delete)
     /// </summary>
     Task<bool> DeactivateUserAsync(int userId, string? reason = null);
-    
+
     /// <summary>
     /// Reactivate user
     /// </summary>
     Task<bool> ReactivateUserAsync(int userId);
-    
+
     /// <summary>
     /// Kiểm tra user có active không
     /// </summary>
     Task<bool> IsUserActiveAsync(int userId);
-    
+
     /// <summary>
     /// Lấy user theo ID (internal use)
     /// </summary>
@@ -155,6 +160,18 @@ public class UserService : IUserService
         return MapToProfileResponse(user);
     }
 
+    public async Task<bool> UpdateAvatarAsync(int userId, string? avatarUrl)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null) return false;
+
+        user.AvatarUrl = avatarUrl;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
     #endregion
 
     #region Password Methods
@@ -253,6 +270,7 @@ public class UserService : IUserService
             FullName = user.FullName,
             PhoneNumber = user.PhoneNumber,
             Email = user.Email,
+            AvatarUrl = user.AvatarUrl,
             IsActive = user.IsActive,
             CreatedAt = user.CreatedAt,
             LastLoginAt = user.LastLoginAt

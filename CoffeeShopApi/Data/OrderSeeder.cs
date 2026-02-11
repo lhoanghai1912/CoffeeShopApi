@@ -7,6 +7,15 @@ public static class OrderSeeder
 {
     public static async Task SeedSampleOrders(AppDbContext context)
     {
+        // ✅ Kiểm tra nếu đã có orders thì SKIP, không xóa
+        if (await context.Orders.AnyAsync())
+        {
+            Console.WriteLine("⏭️  Orders already exist. Skipping OrderSeeder.");
+            return;
+        }
+
+        Console.WriteLine("📦 Seeding sample orders...");
+
         // Ensure there is at least one user
         var user = await context.Users.FirstOrDefaultAsync();
         if (user == null)
@@ -18,28 +27,14 @@ public static class OrderSeeder
 
         // Get products to build orders
         var products = await context.Products.Take(10).ToListAsync();
-        if (!products.Any()) return;
-
-        // Remove existing orders and related items/options to start fresh
-        var existingOrders = await context.Orders
-            .Include(o => o.OrderItems)
-                .ThenInclude(oi => oi.OrderItemOptions)
-            .ToListAsync();
-
-        if (existingOrders.Any())
+        if (!products.Any())
         {
-            // Remove options
-            var allOptions = existingOrders.SelectMany(o => o.OrderItems).SelectMany(oi => oi.OrderItemOptions).ToList();
-            if (allOptions.Any()) context.RemoveRange(allOptions);
-
-            // Remove order items
-            var allItems = existingOrders.SelectMany(o => o.OrderItems).ToList();
-            if (allItems.Any()) context.RemoveRange(allItems);
-
-            // Remove orders
-            context.Orders.RemoveRange(existingOrders);
-            await context.SaveChangesAsync();
+            Console.WriteLine("⚠️  No products found. Skipping OrderSeeder.");
+            return;
         }
+
+        // ❌ XÓA PHẦN XÓA ORDERS CŨ - Không cần xóa nữa
+        // Orders chỉ được tạo 1 lần khi DB rỗng
 
         // Create one order per OrderStatus value to cover all cases
         var statuses = Enum.GetValues(typeof(Models.Enums.OrderStatus)).Cast<Models.Enums.OrderStatus>().ToList();

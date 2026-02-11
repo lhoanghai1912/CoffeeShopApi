@@ -13,6 +13,7 @@ public interface IOrderService
     Task<OrderResponse?> GetByIdAsync(int id);
     Task<OrderResponse?> GetByCodeAsync(string orderCode);
     Task<IEnumerable<OrderSummaryResponse>> GetByUserIdAsync(int userId);
+    Task<PaginatedResponse<OrderSummaryResponse>> GetByUserIdPagedAsync(int userId, int page, int pageSize, string? search, string? orderBy, string? filter);
     Task<IEnumerable<OrderSummaryResponse>> GetAllAsync();
     Task<IEnumerable<OrderSummaryResponse>> GetByStatusAsync(OrderStatus status);
     Task<PaginatedResponse<OrderSummaryResponse>> GetPagedAsync(int page, int pageSize, string? search, string? orderBy, string? filter);
@@ -119,6 +120,93 @@ public class OrderService : IOrderService
         return orders.Select(MapToSummary);
     }
 
+    public async Task<PaginatedResponse<OrderSummaryResponse>> GetByUserIdPagedAsync(
+        int userId, 
+        int page, 
+        int pageSize, 
+        string? search, 
+        string? orderBy, 
+        string? filter)
+    {
+        // Build base query for user's orders
+        var query = _context.Orders
+            .Where(o => o.UserId == userId)
+            .Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.OrderItemOptions)
+            .AsQueryable();
+
+        // Apply search (order code, recipient name, shipping address)
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.ToLower();
+            query = query.Where(o => 
+                o.OrderCode.ToLower().Contains(searchLower) ||
+                (o.RecipientName != null && o.RecipientName.ToLower().Contains(searchLower)) ||
+                (o.ShippingAddress != null && o.ShippingAddress.ToLower().Contains(searchLower)));
+        }
+
+        // Compute counts per status for this user's orders (respecting search but ignoring status filter)
+        var countQuery = _context.Orders.Where(o => o.UserId == userId).AsQueryable();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.ToLower();
+            countQuery = countQuery.Where(o =>
+                o.OrderCode.ToLower().Contains(searchLower) ||
+                (o.RecipientName != null && o.RecipientName.ToLower().Contains(searchLower)) ||
+                (o.ShippingAddress != null && o.ShippingAddress.ToLower().Contains(searchLower)));
+        }
+
+        var statusCounts = await countQuery
+            .GroupBy(o => o.Status)
+            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToListAsync();
+
+        // Initialize all OrderStatus values with 0, then update with actual counts
+        var countDict = Enum.GetValues<OrderStatus>()
+            .ToDictionary(s => s.ToString(), s => 0);
+
+        foreach (var statusCount in statusCounts)
+        {
+            countDict[statusCount.Status.ToString()] = statusCount.Count;
+        }
+
+        // Apply filter (status)
+        if (!string.IsNullOrWhiteSpace(filter))
+        {
+            // Simple filter: Status=Pending, Status=Confirmed, etc.
+            var filterParts = filter.Split('=');
+            if (filterParts.Length == 2 && filterParts[0].Trim().Equals("Status", StringComparison.OrdinalIgnoreCase))
+            {
+                if (Enum.TryParse<OrderStatus>(filterParts[1].Trim(), true, out var status))
+                {
+                    query = query.Where(o => o.Status == status);
+                }
+            }
+        }
+
+        // Get total count before ordering
+        var totalCount = await query.CountAsync();
+
+        // Apply ordering
+        query = !string.IsNullOrWhiteSpace(orderBy) && orderBy.ToLower().Contains("asc")
+            ? query.OrderBy(o => o.CreatedAt)
+            : query.OrderByDescending(o => o.CreatedAt); // Default: newest first
+
+        // Apply pagination
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        var mapped = items.Select(MapToSummary).ToList();
+        var response = new PaginatedResponse<OrderSummaryResponse>(mapped, totalCount, page, pageSize)
+        {
+            Count = countDict
+        };
+
+        return response;
+    }
+
     public async Task<IEnumerable<OrderSummaryResponse>> GetAllAsync()
     {
         var orders = await _orderRepository.GetAllAsync();
@@ -133,9 +221,44 @@ public class OrderService : IOrderService
 
     public async Task<PaginatedResponse<OrderSummaryResponse>> GetPagedAsync(int page, int pageSize, string? search, string? orderBy, string? filter)
     {
+        // Get paged items from repository
         var (items, totalCount) = await _orderRepository.GetPagedAsync(page, pageSize, search, filter, orderBy);
+
+        // Compute status counts for all orders (respecting search but ignoring status filter)
+        var countQuery = _context.Orders.AsQueryable();
+
+        // Apply same search criteria as in repository
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var s = search.Trim().ToLower();
+            countQuery = countQuery.Where(o => 
+                (o.OrderCode != null && o.OrderCode.ToLower().Contains(s)) ||
+                (o.PhoneNumber != null && o.PhoneNumber.ToLower().Contains(s)) ||
+                (o.User != null && o.User.FullName != null && o.User.FullName.ToLower().Contains(s)) ||
+                (o.User != null && o.User.UserName != null && o.User.UserName.ToLower().Contains(s)));
+        }
+
+        var statusCounts = await countQuery
+            .GroupBy(o => o.Status)
+            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToListAsync();
+
+        // Initialize all OrderStatus values with 0, then update with actual counts
+        var countDict = Enum.GetValues<OrderStatus>()
+            .ToDictionary(s => s.ToString(), s => 0);
+
+        foreach (var statusCount in statusCounts)
+        {
+            countDict[statusCount.Status.ToString()] = statusCount.Count;
+        }
+
         var mapped = items.Select(MapToSummary).ToList();
-        return new PaginatedResponse<OrderSummaryResponse>(mapped, totalCount, page, pageSize);
+        var response = new PaginatedResponse<OrderSummaryResponse>(mapped, totalCount, page, pageSize)
+        {
+            Count = countDict
+        };
+
+        return response;
     }
 
     #endregion
@@ -892,7 +1015,7 @@ public class OrderService : IOrderService
             Id = order.Id,
             OrderCode = order.OrderCode,
             UserId = order.UserId,
-            UserName = order.User?.FullName ?? order.User?.UserName,
+            UserName = order.User?.FullName ,
             Status = order.Status,
             SubTotal = order.SubTotal,
             DiscountAmount = order.DiscountAmount,

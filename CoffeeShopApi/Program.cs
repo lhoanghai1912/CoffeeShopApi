@@ -182,30 +182,29 @@ app.UseAuthorization();
 app.MapControllers();
 app.UseStaticFiles();
 
-// Initialize Database - Seed products with OptionGroups
-using (var scope = app.Services.CreateScope())
+// Initialize Database - CHỈ CHẠY KHI DEVELOPMENT VÀ DB RỖNG
+if (app.Environment.IsDevelopment())
 {
+    using var scope = app.Services.CreateScope();
     var services = scope.ServiceProvider;
     var context = services.GetRequiredService<AppDbContext>();
 
-    // ⚠️ CHÚ Ý: Không tự động migrate khi start app
-    // Chỉ apply migrations thủ công bằng: dotnet ef database update
-    // Lý do: Migration có thể xóa data nếu schema thay đổi lớn
-
-    // Apply any pending migrations - CHỈ BẬT KHI CẦN
-    // try
-    // {
-    //     context.Database.Migrate();
-    // }
-    // catch
-    // {
-    //     // Ignore migration errors in development here
-    // }
-
-    // Chỉ seed data nếu DB đã được setup
     try
     {
-        await DbInitializer.InitializeAsync(context);
+        // CHỈ CHẠY NẾU DB RỖNG (kiểm tra cả Products và OptionGroups)
+        var hasProducts = await context.Products.AnyAsync();
+        var hasOptionGroups = await context.OptionGroups.AnyAsync();
+
+        if (!hasProducts && !hasOptionGroups)
+        {
+            Console.WriteLine("🌱 Database is empty. Starting initial seed...");
+            await DbInitializer.InitializeAsync(context);
+            Console.WriteLine("✅ Database seeding completed!");
+        }
+        else
+        {
+            Console.WriteLine("✓ Database already contains data. Skipping seed.");
+        }
     }
     catch (Exception ex)
     {

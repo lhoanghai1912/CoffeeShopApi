@@ -42,6 +42,12 @@ public class User
     public string? Email { get; set; }
 
     /// <summary>
+    /// URL của ảnh đại diện (avatar)
+    /// </summary>
+    [MaxLength(500)]
+    public string? AvatarUrl { get; set; }
+
+    /// <summary>
     /// Trạng thái tài khoản: true = Active, false = Inactive (soft delete)
     /// User inactive không thể login nhưng order cũ vẫn giữ
     /// </summary>

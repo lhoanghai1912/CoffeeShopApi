@@ -55,7 +55,8 @@ public class RegisterResponse
     public string FullName { get; set; } = string.Empty;
     public string Message { get; set; } = string.Empty;
     public bool RequiresEmailVerification { get; set; } = false;
-    
+    public string AvatarUrl { get; set; } = string.Empty;
+
     /// <summary>
     /// Verification code - CHỈ TRẢ TRONG MÔI TRƯỜNG DEV/TEST
     /// </summary>
@@ -80,6 +81,7 @@ public class AuthResponse
     public object? Role { get; set; } 
     public string? PhoneNumber { get; set; } 
     public string Token { get; set; } 
+    public string AvatarUrl { get; set; }
 }
 
 #region Forgot Password DTOs

@@ -9,13 +9,16 @@ public static class ProductSeeder
 {
     public static async Task SeedProductsWithOptions(AppDbContext context)
     {
-        if (await context.Products.AnyAsync())
+        // ✅ Kiểm tra cả Products VÀ OptionGroups để tránh duplicate
+        if (await context.Products.AnyAsync() || await context.OptionGroups.AnyAsync())
         {
+            Console.WriteLine("⏭️  Data already exists. Skipping ProductSeeder.");
             return;
         }
 
-        // ========== BƯỚC 1: TẠO TEMPLATE OPTION GROUPS (1 LẦN DUY NHẤT) ==========
         Console.WriteLine("🔧 Creating OptionGroup templates...");
+
+        // ========== BƯỚC 1: TẠO TEMPLATE OPTION GROUPS (1 LẦN DUY NHẤT) ==========
 
         // Template 1: Kích cỡ (áp dụng cho TẤT CẢ sản phẩm)
         var templateSize = new OptionGroup

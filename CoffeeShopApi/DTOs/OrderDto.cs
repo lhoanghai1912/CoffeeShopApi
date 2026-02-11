@@ -205,7 +205,7 @@ public class OrderResponse
     public int? UserId { get; set; }
     public string? UserName { get; set; }
     public OrderStatus Status { get; set; }
-    public string StatusText => GetStatusText(Status);
+    public string OrderStatus => Status.ToString() ;
     public decimal SubTotal { get; set; }
     public decimal DiscountAmount { get; set; }
     public decimal ShippingFee { get; set; }
@@ -251,17 +251,17 @@ public class OrderResponse
     public List<OrderItemResponse> Items { get; set; } = new();
     public int TotalItems => Items.Sum(i => i.Quantity);
 
-    private static string GetStatusText(OrderStatus status) => status switch
-    {
-        OrderStatus.Draft => "Nháp",
-        OrderStatus.Pending => "Chờ xử lý",
-        OrderStatus.Confirmed => "Đã xác nhận",
-        OrderStatus.Delivering => "Đang giao",
-        OrderStatus.Paid => "Đã thanh toán",
-        OrderStatus.Completed => "Hoàn thành",
-        OrderStatus.Cancelled => "Đã hủy",
-        _ => "Không xác định"
-    };
+    // private static string GetStatusText(OrderStatus status) => status switch
+    // {
+    //     OrderStatus.Draft => "Nháp",
+    //     OrderStatus.Pending => "Chờ xử lý",
+    //     OrderStatus.Confirmed => "Đã xác nhận",
+    //     OrderStatus.Delivering => "Đang giao",
+    //     OrderStatus.Paid => "Đã thanh toán",
+    //     OrderStatus.Completed => "Hoàn thành",
+    //     OrderStatus.Cancelled => "Đã hủy",
+    //     _ => "Không xác định"
+    // };
 }
 
 /// <summary>
@@ -275,7 +275,7 @@ public class OrderItemResponse
     public string? ProductImageUrl { get; set; }
     public int Quantity { get; set; }
     public decimal BasePrice { get; set; }
-    public decimal OptionPrice { get; set; }
+    public decimal OptionPrice { get; set; } 
     public decimal UnitPrice { get; set; }
     public decimal TotalPrice { get; set; }
     public string? Note { get; set; }
@@ -312,17 +312,7 @@ public class OrderSummaryResponse
     public int Id { get; set; }
     public string OrderCode { get; set; } = string.Empty;
     public OrderStatus Status { get; set; }
-    public string StatusText => Status switch
-    {
-        OrderStatus.Draft => "Nháp",
-        OrderStatus.Pending => "Chờ xử lý",
-        OrderStatus.Confirmed => "Đã xác nhận",
-        OrderStatus.Delivering => "Đang giao",
-        OrderStatus.Paid => "Đã thanh toán",
-        OrderStatus.Completed => "Hoàn thành",
-        OrderStatus.Cancelled => "Đã hủy",
-        _ => "Không xác định"
-    };
+    public string OrderStatus => Status.ToString();
     public decimal FinalAmount { get; set; }
     public int TotalItems { get; set; }
     public DateTime CreatedAt { get; set; }

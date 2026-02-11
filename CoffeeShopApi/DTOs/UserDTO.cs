@@ -17,15 +17,16 @@ public class UserProfileResponse
     public string? FullName { get; set; }
     public string? PhoneNumber { get; set; }
     public string? Email { get; set; }
+    public string? AvatarUrl { get; set; }
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? LastLoginAt { get; set; }
-    
+
     /// <summary>
     /// Thống kê đơn hàng của user (optional, load khi cần)
     /// </summary>
     public UserOrderStats? OrderStats { get; set; }
-    
+
     /// <summary>
     /// Danh sách địa chỉ giao hàng của user
     /// </summary>

@@ -9,6 +9,28 @@ public interface IFileUploadService
     Task<string> UploadImageAsync(IFormFile image, string? folder = null);
     Task<bool> DeleteImageAsync(string imageUrl);
     bool ValidateImage(IFormFile image, out string errorMessage);
+
+    /// <summary>
+    /// ⭐ Upload file với custom options
+    /// </summary>
+    Task<FileUploadResult> UploadFileAsync(IFormFile file, string folder, string? customFileName = null);
+
+    /// <summary>
+    /// ⭐ Xóa file theo URL
+    /// </summary>
+    Task<bool> DeleteFileAsync(string fileUrl);
+}
+
+/// <summary>
+/// ⭐ Result object cho file upload
+/// </summary>
+public class FileUploadResult
+{
+    public bool Success { get; set; }
+    public string Message { get; set; } = string.Empty;
+    public string FileUrl { get; set; } = string.Empty;
+    public string FileName { get; set; } = string.Empty;
+    public long FileSize { get; set; }
 }
 
 public class FileUploadService : IFileUploadService
@@ -130,5 +152,83 @@ public class FileUploadService : IFileUploadService
             _logger.LogError(ex, "Error deleting image: {ImageUrl}", imageUrl);
             return false;
         }
+    }
+
+    /// <summary>
+    /// ⭐ Upload file với custom options (cho avatar, documents, etc.)
+    /// </summary>
+    public async Task<FileUploadResult> UploadFileAsync(IFormFile file, string folder, string? customFileName = null)
+    {
+        try
+        {
+            if (file == null || file.Length == 0)
+            {
+                return new FileUploadResult
+                {
+                    Success = false,
+                    Message = "File is required"
+                };
+            }
+
+            // Validate file size
+            if (file.Length > _settings.MaxFileSizeBytes)
+            {
+                return new FileUploadResult
+                {
+                    Success = false,
+                    Message = $"File size exceeds maximum allowed size of {_settings.MaxFileSizeMB}MB"
+                };
+            }
+
+            var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+
+            // Generate filename
+            var fileName = string.IsNullOrEmpty(customFileName)
+                ? $"{Guid.NewGuid()}{ext}"
+                : $"{customFileName}_{DateTime.UtcNow:yyyyMMdd}_{Guid.NewGuid().ToString("N")[..8]}{ext}";
+
+            // Create upload directory
+            var uploadPath = Path.Combine(_environment.WebRootPath, _settings.UploadFolder, folder);
+            Directory.CreateDirectory(uploadPath);
+
+            var savePath = Path.Combine(uploadPath, fileName);
+
+            _logger.LogInformation("Uploading file: {FileName} to {SavePath}", file.FileName, savePath);
+
+            // Save file
+            await using (var stream = new FileStream(savePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            var fileUrl = $"/{_settings.UploadFolder}/{folder}/{fileName}";
+            _logger.LogInformation("File uploaded successfully: {FileUrl}", fileUrl);
+
+            return new FileUploadResult
+            {
+                Success = true,
+                Message = "File uploaded successfully",
+                FileUrl = fileUrl,
+                FileName = fileName,
+                FileSize = file.Length
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error uploading file: {FileName}", file?.FileName);
+            return new FileUploadResult
+            {
+                Success = false,
+                Message = $"Error uploading file: {ex.Message}"
+            };
+        }
+    }
+
+    /// <summary>
+    /// ⭐ Xóa file theo URL (alias cho DeleteImageAsync)
+    /// </summary>
+    public async Task<bool> DeleteFileAsync(string fileUrl)
+    {
+        return await DeleteImageAsync(fileUrl);
     }
 }

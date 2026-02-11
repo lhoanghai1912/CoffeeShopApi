@@ -7,48 +7,11 @@ public static class DbInitializer
 {
     public static async Task InitializeAsync(AppDbContext context)
     {
-        // Reset identity seed for ALL tables
-        try 
+        // ❌ XÓA PHẦN DBCC CHECKIDENT - Không cần reset identity mỗi lần start app
+        // Chỉ seed data nếu DB rỗng
+
+        try
         {
-            // List of all tables with identity columns (khong co ProductDetails nua)
-            var tables = new[]
-            {
-                "Users",
-                "Roles",
-                "Permissions",
-                "Products",
-                "Categories",
-                "OptionGroups",
-                "OptionItems",
-                "Orders",
-                "OrderItems",
-                "OrderItemOptions",
-                "UserAddresses",
-                "Vouchers",
-                "VoucherUsages"
-            };
-
-            foreach (var table in tables)
-            {
-                try
-                {
-                    // Get max ID and reseed for each table
-                    var sql = $@"
-                        DECLARE @maxId INT;
-                        SELECT @maxId = ISNULL(MAX(Id), 0) FROM {table};
-                        IF @maxId > 0
-                            DBCC CHECKIDENT ('{table}', RESEED, @maxId);
-                        ELSE
-                            DBCC CHECKIDENT ('{table}', RESEED, 1);
-                    ";
-                    context.Database.ExecuteSqlRaw(sql);
-                }
-                catch
-                {
-                    // Ignore errors for individual tables
-                }
-            }
-
             // Seed 30 products with option system
             await ProductSeeder.SeedProductsWithOptions(context);
 
@@ -82,9 +45,10 @@ public static class DbInitializer
                 // ignore
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore errors
+            Console.WriteLine($"❌ Seeding error: {ex.Message}");
+            throw;
         }
     }
 }

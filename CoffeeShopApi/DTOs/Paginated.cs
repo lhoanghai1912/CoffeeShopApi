@@ -7,7 +7,12 @@
         public int PageSize { get; set; }
         public int TotalPages { get; set; }
         public int TotalCount { get; set; }
-        public IEnumerable<T> Items { get; set; } 
+        public Dictionary<string, int>? Count { get; set; }
+        public IEnumerable<T> Items { get; set; }
+
+        /// <summary>
+        /// Count per status or custom groups. Key = status name, Value = count
+        /// </summary>
         
 
         public PaginatedResponse(IEnumerable<T> items, int count, int pageNumber, int pageSize)

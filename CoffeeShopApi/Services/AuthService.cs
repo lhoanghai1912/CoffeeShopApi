@@ -135,7 +135,8 @@ public class AuthService : IAuthService
             FullName = user.FullName,
             Email = user.Email,
             PhoneNumber = user.PhoneNumber,
-            Token = token 
+            Token = token ,
+            AvatarUrl = user.AvatarUrl
         };
     }
     

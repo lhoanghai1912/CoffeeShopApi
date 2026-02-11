@@ -14,11 +14,16 @@ public class UsersController : ControllerBase
 {
     private readonly IUserService _userService;
     private readonly IUserAddressService _userAddressService;
+    private readonly IFileUploadService _fileUploadService;
 
-    public UsersController(IUserService userService, IUserAddressService userAddressService)
+    public UsersController(
+        IUserService userService, 
+        IUserAddressService userAddressService,
+        IFileUploadService fileUploadService)
     {
         _userService = userService;
         _userAddressService = userAddressService;
+        _fileUploadService = fileUploadService;
     }
 
     #region Address Endpoints
@@ -194,6 +199,120 @@ public class UsersController : ControllerBase
         catch (InvalidOperationException ex)
         {
             return BadRequest(ApiResponse<object>.Fail(ex.Message));
+        }
+    }
+
+    /// <summary>
+    /// ⭐ Upload avatar cho user hiện tại
+    /// </summary>
+    [HttpPost("avatar")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadAvatar(IFormFile file)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+            return Unauthorized(ApiResponse<object>.Unauthorized("Không xác định được user"));
+
+        if (file == null || file.Length == 0)
+            return BadRequest(ApiResponse<object>.Fail("Vui lòng chọn file ảnh"));
+
+        try
+        {
+            // Validate file là ảnh
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+
+            if (!allowedExtensions.Contains(extension))
+            {
+                return BadRequest(ApiResponse<object>.Fail(
+                    "File không hợp lệ. Chỉ chấp nhận: " + string.Join(", ", allowedExtensions)));
+            }
+
+            // Validate kích thước (max 5MB)
+            const long maxFileSize = 5 * 1024 * 1024; // 5MB
+            if (file.Length > maxFileSize)
+            {
+                return BadRequest(ApiResponse<object>.Fail("Kích thước file không được vượt quá 5MB"));
+            }
+
+            // Get old avatar để xóa (nếu có)
+            var user = await _userService.GetByIdAsync(userId.Value);
+            var oldAvatarUrl = user?.AvatarUrl;
+
+            // Upload file mới
+            var uploadResult = await _fileUploadService.UploadFileAsync(
+                file, 
+                "avatars", 
+                $"user_{userId}");
+
+            if (!uploadResult.Success)
+            {
+                return BadRequest(ApiResponse<object>.Fail(uploadResult.Message ?? "Upload failed"));
+            }
+
+            // Update AvatarUrl trong database
+            var updated = await _userService.UpdateAvatarAsync(userId.Value, uploadResult.FileUrl);
+            if (!updated)
+            {
+                // Rollback: Xóa file vừa upload
+                await _fileUploadService.DeleteFileAsync(uploadResult.FileUrl);
+                return BadRequest(ApiResponse<object>.Fail("Không thể cập nhật avatar"));
+            }
+
+            // Xóa avatar cũ (nếu có)
+            if (!string.IsNullOrEmpty(oldAvatarUrl))
+            {
+                await _fileUploadService.DeleteFileAsync(oldAvatarUrl);
+            }
+
+            return Ok(ApiResponse<object>.Ok(new
+            {
+                avatarUrl = uploadResult.FileUrl,
+                fileName = uploadResult.FileName,
+                fileSize = uploadResult.FileSize
+            }, "Upload avatar thành công"));
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail($"Lỗi khi upload avatar: {ex.Message}"));
+        }
+    }
+
+    /// <summary>
+    /// ⭐ Xóa avatar của user hiện tại
+    /// </summary>
+    [HttpDelete("avatar")]
+    public async Task<IActionResult> DeleteAvatar()
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+            return Unauthorized(ApiResponse<object>.Unauthorized("Không xác định được user"));
+
+        try
+        {
+            // Get current avatar
+            var user = await _userService.GetByIdAsync(userId.Value);
+            if (user == null)
+                return NotFound(ApiResponse<object>.NotFound("Không tìm thấy user"));
+
+            if (string.IsNullOrEmpty(user.AvatarUrl))
+                return BadRequest(ApiResponse<object>.Fail("User chưa có avatar"));
+
+            var oldAvatarUrl = user.AvatarUrl;
+
+            // Remove avatar from database
+            var updated = await _userService.UpdateAvatarAsync(userId.Value, null);
+            if (!updated)
+                return BadRequest(ApiResponse<object>.Fail("Không thể xóa avatar"));
+
+            // Delete physical file
+            await _fileUploadService.DeleteFileAsync(oldAvatarUrl);
+
+            return Ok(ApiResponse<object>.Ok(null, "Xóa avatar thành công"));
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail($"Lỗi khi xóa avatar: {ex.Message}"));
         }
     }
 
